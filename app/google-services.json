@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1096724493787",
+    "project_id": "proyectomoviles-7c9c3",
+    "storage_bucket": "proyectomoviles-7c9c3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1096724493787:android:9e7d9b3c2baad0741163fe",
+        "android_client_info": {
+          "package_name": "me.andilin.runwithme"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLyPVAa_-Mbk39vgPkhLoakIebAd2IbUU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,5 +1,15 @@
 [versions]
+activityComposeVersion = "1.9.2"
 agp = "8.13.0"
+androidxComposeBom = "2024.09.02"
+androidxJunit = "1.2.1"
+androidxNavigationCompose = "2.8.0"
+coilCompose = "2.7.0"
+composeBomVersion = "2025.10.01"
+coreKtxVersion = "1.13.1"
+espressoCoreVersion = "3.6.1"
+firebaseBom = "34.5.0"
+firebaseBomVersion = "33.5.1"
 kotlin = "2.0.21"
 coreKtx = "1.17.0"
 junit = "4.13.2"
@@ -8,9 +18,41 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.9.4"
 activityCompose = "1.11.0"
 composeBom = "2024.09.00"
+lifecycleRuntimeKtxVersion = "2.8.4"
+material3Version = "1.3.0"
+materialIconsExtended = "1.7.8"
+navigationCompose = "2.9.5"
+firebaseAuthKtx = "24.0.1"
+runtime = "1.9.4"
+firebaseCommonKtx = "22.0.1"
+material3 = "1.4.0"
+ui = "1.9.4"
 
 [libraries]
+androidx-activity-compose-v192 = { module = "androidx.activity:activity-compose", version.ref = "activityComposeVersion" }
+androidx-compose-bom-v20251001 = { module = "androidx.compose:compose-bom", version.ref = "composeBomVersion" }
+androidx-compose-material-icons-core = { module = "androidx.compose.material:material-icons-core", version.ref = "materialIconsExtended" }
+androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
+androidx-compose-material3-v130 = { module = "androidx.compose.material3:material3", version.ref = "material3Version" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-core-ktx-v1131 = { module = "androidx.core:core-ktx", version.ref = "coreKtxVersion" }
+androidx-espresso-core-v361 = { module = "androidx.test.espresso:espresso-core", version.ref = "espressoCoreVersion" }
+androidx-junit-v121 = { module = "androidx.test.ext:junit", version.ref = "androidxJunit" }
+androidx-lifecycle-runtime-ktx-v284 = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtxVersion" }
+androidx-material-icons-core = { module = "androidx.compose.material:material-icons-core" }
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
+androidx-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+androidx-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+androidx-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
+compose-bom-v20240902 = { module = "androidx.compose:compose-bom", version.ref = "androidxComposeBom" }
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-bom-v3351 = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBomVersion" }
+google-firebase-auth-ktx = { module = "com.google.firebase:firebase-auth-ktx" }
+google-firebase-common-ktx = { module = "com.google.firebase:firebase-common-ktx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -24,6 +66,15 @@ androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "u
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuthKtx" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
+firebase-common-ktx = { group = "com.google.firebase", name = "firebase-common-ktx", version.ref = "firebaseCommonKtx" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
+material3 = { module = "androidx.compose.material3:material3" }
+navigation-compose-v280 = { module = "androidx.navigation:navigation-compose", version.ref = "androidxNavigationCompose" }
+ui = { module = "androidx.compose.ui:ui" }
+ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
