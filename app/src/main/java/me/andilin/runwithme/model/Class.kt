@@ -1,8 +1,10 @@
 package me.andilin.runwithme.model
 
-data class User(
-    val id: String = "",
+data class UserData(
     val nombre: String = "",
-    val email: String = "",
-    val foto: String? = null
+    val correo: String = "",
+    val fechaNacimiento: String = "",
+    val genero: String = "",
+    val nivel: String = "",
+    val fotoLocal: String? = null
 )

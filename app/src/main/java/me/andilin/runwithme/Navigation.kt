@@ -4,12 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 
 @Composable
-fun Navigationp(navController1: NavHostController) {
-    val navController = rememberNavController()
-
+fun Navigation(navController: NavHostController) {
     NavHost(navController = navController, startDestination = "login") {
         composable("login") {
             LoginScreen(
