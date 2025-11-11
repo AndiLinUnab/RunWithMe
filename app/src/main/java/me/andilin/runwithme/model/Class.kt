@@ -16,3 +16,9 @@ data class Publicacion(
     val imagenPath: String? = null,
     val tiempo: String = ""
 )
+data class Historia(
+    val id: String = "",
+    val autor: String = "",
+    val imagenPath: String? = null,
+    val tiempo: String = ""
+)

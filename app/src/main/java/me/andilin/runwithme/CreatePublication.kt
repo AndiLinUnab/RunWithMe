@@ -10,8 +10,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +31,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -53,6 +56,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import me.andilin.runwithme.model.Publicacion
 
@@ -73,21 +77,20 @@ fun CreatePublication(
     var texto by remember { mutableStateOf(TextFieldValue("")) }
     var selectedGroup by remember { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var tipoPublicacion by remember { mutableStateOf("Publicación") } // 👈 Nueva variable
     val grupos = listOf("Runners Bogotá", "Atletas del Sol", "Nocturnos 5K")
+
     val db = FirebaseFirestore.getInstance()
     val context = LocalContext.current
 
-    // 📸 Launcher para abrir galería
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        selectedImageUri = uri
-    }
+    ) { uri -> selectedImageUri = uri }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Crear publicación", fontWeight = FontWeight.Bold) },
+                title = { Text("Crear ${tipoPublicacion.lowercase()}", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Atrás")
@@ -103,7 +106,25 @@ fun CreatePublication(
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Campo de texto
+            // --- Selector tipo de publicación ---
+            Text("Tipo de contenido", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+            Spacer(Modifier.height(8.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                listOf("Publicación", "Historia").forEach { tipo ->
+                    FilterChip(
+                        selected = tipoPublicacion == tipo,
+                        onClick = { tipoPublicacion = tipo },
+                        label = { Text(tipo) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // --- Campo de texto ---
             OutlinedTextField(
                 value = texto,
                 onValueChange = { texto = it },
@@ -115,7 +136,7 @@ fun CreatePublication(
 
             Spacer(Modifier.height(20.dp))
 
-            // Imagen seleccionada desde galería
+            // --- Imagen ---
             Text("Subir foto", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
             Spacer(Modifier.height(8.dp))
 
@@ -125,9 +146,7 @@ fun CreatePublication(
                     .height(150.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFFF0F0F0))
-                    .clickable {
-                        imagePickerLauncher.launch("image/*")
-                    },
+                    .clickable { imagePickerLauncher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
                 if (selectedImageUri != null) {
@@ -149,7 +168,7 @@ fun CreatePublication(
 
             Spacer(Modifier.height(20.dp))
 
-            // Menú desplegable de grupos
+            // --- Menú desplegable de grupos ---
             Text("Grupos", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
             Spacer(Modifier.height(8.dp))
             var expanded by remember { mutableStateOf(false) }
@@ -163,10 +182,7 @@ fun CreatePublication(
                     readOnly = true,
                     trailingIcon = {
                         IconButton(onClick = { expanded = true }) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBackIos,
-                                contentDescription = "Desplegar"
-                            )
+                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Desplegar")
                         }
                     }
                 )
@@ -189,36 +205,36 @@ fun CreatePublication(
 
             Spacer(Modifier.height(30.dp))
 
-            // Botón publicar
+            // --- Botón publicar ---
             Button(
                 onClick = {
-                    if (texto.text.isNotBlank()) {
+                    if (texto.text.isNotBlank() || selectedImageUri != null) {
                         val id = UUID.randomUUID().toString()
                         val fecha = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
 
-                        val nueva = Publicacion(
-                            id = id,
-                            autor = "Carlos Hernández",
-                            texto = texto.text,
-                            grupo = selectedGroup.ifEmpty { "General" },
-                            imagenPath = selectedImageUri?.toString(),
-                            tiempo = fecha
+                        val data = hashMapOf(
+                            "id" to id,
+                            "autor" to (FirebaseAuth.getInstance().currentUser?.displayName ?: "Usuario"),
+                            "texto" to texto.text,
+                            "grupo" to selectedGroup.ifEmpty { "General" },
+                            "imagenPath" to (selectedImageUri?.toString() ?: ""),
+                            "tiempo" to fecha
                         )
 
-                        // 🔥 Guardar en Firestore
-                        db.collection("publicaciones")
+                        val coleccion = if (tipoPublicacion == "Historia") "historias" else "publicaciones"
+
+                        db.collection(coleccion)
                             .document(id)
-                            .set(nueva)
+                            .set(data)
                             .addOnSuccessListener {
-                                publicacionesGlobales.add(0, nueva)
-                                Toast.makeText(context, "Publicación creada", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "$tipoPublicacion creada", Toast.LENGTH_SHORT).show()
                                 onPublicar()
                             }
                             .addOnFailureListener { e ->
                                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                             }
                     } else {
-                        Toast.makeText(context, "Escribe algo antes de publicar", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Agrega texto o una imagen antes de publicar", Toast.LENGTH_SHORT).show()
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD6B3FF)),
