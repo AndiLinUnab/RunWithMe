@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "me.andilin.runwithme"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "me.andilin.runwithme"
@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.coil.compose)
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.compose.ui)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

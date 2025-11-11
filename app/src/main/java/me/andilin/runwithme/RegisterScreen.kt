@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -43,8 +44,10 @@ import com.google.firebase.firestore.firestore
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
+    navController: NavHostController,
     onClickBack: () -> Unit = {},
-    onSuccessfulRegister: () -> Unit = {}
+    onSuccessfulRegister: () -> Unit = {},
+
 ) {
     val context = LocalContext.current
     val activity = LocalView.current.context as Activity

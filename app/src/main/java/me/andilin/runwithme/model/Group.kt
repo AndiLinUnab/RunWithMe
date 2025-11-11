@@ -19,7 +19,10 @@ data class Group(
     val createdBy: String = "", // ID del usuario que creó el grupo
     val createdAt: Date = Date(),
     val members: List<String> = emptyList(), // Solo IDs de miembros
-    val memberCount: Int = 1
+    val memberCount: Int = 1,
+
+    val pace: Double = 10.toDouble()
+
 )
 
 data class GroupLocation(
