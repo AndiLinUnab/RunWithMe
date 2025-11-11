@@ -6,7 +6,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -108,7 +107,7 @@ fun Grupos() {
             }
         }
 
-        // Nivel de experiencia - ACTUALIZADO CON COLORES
+        // Nivel de experiencia - CON COLORES
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -211,7 +210,10 @@ fun Grupos() {
 
         // Botón crear grupo
         Button(
-            onClick = { /* Lógica para crear grupo */ },
+            onClick = {
+                // Aquí va la lógica para guardar en Firestore
+                // con las opciones que eligió el usuario
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),

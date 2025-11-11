@@ -8,3 +8,4 @@ data class UserData(
     val nivel: String = "",
     val fotoLocal: String? = null
 )
+
