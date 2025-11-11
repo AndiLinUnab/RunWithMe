@@ -3,194 +3,348 @@ package me.andilin.runwithme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.auth.FirebaseAuth
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Mapa() {
-    var selectedDistance by remember { mutableStateOf("") }
-    var scheduleStart by remember { mutableStateOf("") }
-    var scheduleEnd by remember { mutableStateOf("") }
-    var selectedLevel by remember { mutableStateOf("") }
+    var currentLatitude by remember { mutableStateOf(0.0) }
+    var currentLongitude by remember { mutableStateOf(0.0) }
+    var address by remember { mutableStateOf("") }
+    var city by remember { mutableStateOf("") }
+    var country by remember { mutableStateOf("") }
+    var activityType by remember { mutableStateOf("Running") }
+    var note by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var showSuccessMessage by remember { mutableStateOf(false) }
 
-    val distances = listOf("0-1km", "1-5km", "6-10km", "10-20km")
-    val levels = listOf("Principiante", "Medio", "Avanzado")
+    val firestore = FirebaseFirestore.getInstance()
+    val auth = FirebaseAuth.getInstance()
+
+    val activityTypes = listOf("Running", "Ciclismo", "Caminata")
+
+    // Función para obtener ubicación actual (simulada por ahora)
+    fun obtenerUbicacionActual() {
+        // En una app real, aquí iría la lógica de GPS
+        currentLatitude = 19.4326  // Ejemplo: Ciudad de México
+        currentLongitude = -99.1332
+        address = "Avenida 42"
+        city = "Bucaramanga"
+        country = "Colombia"
+    }
+
+    // Función para guardar datos del mapa en Firebase
+    fun guardarMapaEnFirestore() {
+        val usuario = auth.currentUser
+        if (usuario == null) {
+            println("❌ ERROR: Usuario no está logueado")
+            return
+        }
+
+        if (currentLatitude == 0.0 || currentLongitude == 0.0) {
+            println("❌ ERROR: Ubicación no válida")
+            return
+        }
+
+        println("✅ Guardando datos del mapa:")
+        println("   - Latitud: $currentLatitude")
+        println("   - Longitud: $currentLongitude")
+        println("   - Dirección: $address")
+        println("   - Ciudad: $city")
+        println("   - País: $country")
+        println("   - Tipo actividad: $activityType")
+        println("   - Nota: $note")
+
+        isLoading = true
+
+        // Crear objeto MapData con data class
+        val mapData = MapData(
+            userId = usuario.uid,
+            userName = usuario.displayName ?: "Usuario",
+            location = MapLocation(
+                latitude = currentLatitude,
+                longitude = currentLongitude,
+                address = address,
+                city = city,
+                country = country
+            ),
+            activityType = activityType,
+            note = note,
+            timestamp = Date()
+        )
+
+        // Guardar en Firestore
+        firestore.collection("map_locations")
+            .add(mapData)
+            .addOnSuccessListener { documento ->
+                isLoading = false
+                showSuccessMessage = true
+                println("✅✅✅ UBICACIÓN GUARDADA EXITOSAMENTE!")
+                println("✅ ID: ${documento.id}")
+                println("✅ Colección: map_locations")
+
+                // Limpiar formulario (opcional)
+                note = ""
+            }
+            .addOnFailureListener { error ->
+                isLoading = false
+                println("❌❌❌ ERROR AL GUARDAR: ${error.message}")
+            }
+    }
+
+    // Obtener ubicación al iniciar
+    LaunchedEffect(Unit) {
+        obtenerUbicacionActual()
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Mensaje de éxito
+        if (showSuccessMessage) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2196F3))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "✅ Ubicación guardada exitosamente!",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = { showSuccessMessage = false }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar mensaje",
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        }
+
+        // Loading
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+
         // Título
         Text(
-            text = "Mapa",
+            text = "Mi Mapa",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 24.dp)
+            color = MaterialTheme.colorScheme.primary
         )
 
-        // Lugares destacados
-        Text(
-            text = "Lugares:",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Column(
-            modifier = Modifier.padding(start = 8.dp, bottom = 16.dp)
+        // Información de ubicación
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            listOf(
-                "Cairera 3.33",
-                "Calle 37",
-                "Calle 38",
-                "Calle 41",
-                "Calle 42",
-                "Calle 44",
-                "Parque Las Palmas",
-                "Parque San Pío",
-                "Hotel Dann Carlton Bucaramanga"
-            ).forEach { lugar ->
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = "Ubicación",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Ubicación Actual",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                // Coordenadas
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Latitud:", fontWeight = FontWeight.Medium)
+                    Text(String.format("%.6f", currentLatitude))
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Longitud:", fontWeight = FontWeight.Medium)
+                    Text(String.format("%.6f", currentLongitude))
+                }
+
+                // Dirección
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it },
+                    label = { Text("Dirección") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = city,
+                        onValueChange = { city = it },
+                        label = { Text("Ciudad") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = country,
+                        onValueChange = { country = it },
+                        label = { Text("País") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                }
+            }
+        }
+
+        // Tipo de actividad
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Text(
-                    text = "• $lugar",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 2.dp)
+                    text = "Tipo de Actividad",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    activityTypes.forEach { type ->
+                        FilterChip(
+                            selected = activityType == type,
+                            onClick = { activityType = type },
+                            label = { Text(type) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Nota adicional
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "Nota Adicional",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("Agrega una nota sobre esta ubicación...") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    singleLine = false
                 )
             }
         }
 
-        // Filtros
-        Text(
-            text = "filtros:",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        // Distancia
-        Text(
-            text = "Distancia:",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
+        // Botones de acción
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            distances.forEach { distance ->
-                FilterChip(
-                    selected = selectedDistance == distance,
-                    onClick = {
-                        selectedDistance = if (selectedDistance == distance) "" else distance
-                    },
-                    label = { Text(distance) }
-                )
+            // Botón actualizar ubicación
+            OutlinedButton(
+                onClick = { obtenerUbicacionActual() },
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.LocationOn, contentDescription = "Actualizar ubicación")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Actualizar Ubicación")
+            }
+
+            // Botón guardar
+            Button(
+                onClick = { guardarMapaEnFirestore() },
+                modifier = Modifier.weight(1f),
+                enabled = !isLoading && currentLatitude != 0.0 && currentLongitude != 0.0
+            ) {
+                Icon(Icons.Default.Save, contentDescription = "Guardar")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Guardar Ubicación")
             }
         }
 
-        // Horario
-        Text(
-            text = "Horario:",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // Información adicional
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
         ) {
-            OutlinedTextField(
-                value = scheduleStart,
-                onValueChange = { scheduleStart = it },
-                placeholder = { Text("Inicio") },
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp),
-                singleLine = true
-            )
-
-            Text(" - ", modifier = Modifier.padding(horizontal = 4.dp))
-
-            OutlinedTextField(
-                value = scheduleEnd,
-                onValueChange = { scheduleEnd = it },
-                placeholder = { Text("Fin") },
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp),
-                singleLine = true
-            )
-        }
-
-        // Nivel
-        Text(
-            text = "Nivel:",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            levels.forEach { level ->
-                FilterChip(
-                    selected = selectedLevel == level,
-                    onClick = {
-                        selectedLevel = if (selectedLevel == level) "" else level
-                    },
-                    label = { Text(level) }
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "ℹ️ Información",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1976D2)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Esta ubicación se guardará en Firebase y podrá ser vista por otros usuarios de la app.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF424242)
                 )
             }
         }
-
-        // Botón de aplicar filtros
-        Button(
-            onClick = {
-                // Aquí iría la lógica para aplicar los filtros
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp)
-        ) {
-            Text("Aplicar Filtros")
-        }
-    }
-}
-
-// Versión alternativa con Checkbox para horario si prefieres
-@Composable
-fun HorarioCheckboxAlternative() {
-    var horarioChecked by remember { mutableStateOf(false) }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(bottom = 16.dp)
-    ) {
-        Checkbox(
-            checked = horarioChecked,
-            onCheckedChange = { horarioChecked = it }
-        )
-        Text(
-            text = "Horario específico",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(start = 8.dp)
-        )
     }
 }

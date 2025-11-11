@@ -29,7 +29,7 @@ fun Navigation(navController: NavHostController) {
             )
         }
         composable("crear_grupo") {
-            Grupos() // Tu frame de crear grupos
+            Mapa() // Tu frame de crear grupos
         }
     }
 }
