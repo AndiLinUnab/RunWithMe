@@ -63,6 +63,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import me.andilin.runwithme.model.Group
 import me.andilin.runwithme.model.Publicacion
+import me.andilin.runwithme.model.UserData
 
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -89,18 +90,63 @@ fun CreatePublication(
     // 🔹 Lista dinámica de grupos del usuario
     var grupos by remember { mutableStateOf<List<Group>>(emptyList()) }
     var isLoadingGroups by remember { mutableStateOf(true) }
+    var userName by remember { mutableStateOf("") }
 
-    // 🔹 Cargar grupos donde el usuario es miembro
+    // 🔹 Cargar datos del usuario y grupos
     LaunchedEffect(Unit) {
         try {
             val uid = auth.currentUser?.uid ?: return@LaunchedEffect
-            val snapshot = db.collection("groups")
-                .whereArrayContains("members", uid)
-                .get()
-                .await()
-            grupos = snapshot.toObjects(Group::class.java)
+
+            // Cargar nombre del usuario desde la colección usuarios
+            val userDoc = db.collection("usuarios").document(uid).get().await()
+            val userData = userDoc.toObject(UserData::class.java)
+            userName = userData?.nombre ?: "Usuario"
+
+            // 🔹 CORRECCIÓN: Usar la misma colección que en HomeScreen
+            // Primero intenta con "grupos", si no funciona prueba con "groups"
+            var gruposCollection = "grupos"
+
+            try {
+                // Cargar grupos donde el usuario es miembro
+                val gruposMiembroSnap = db.collection(gruposCollection)
+                    .whereArrayContains("members", uid)
+                    .get()
+                    .await()
+
+                // Cargar grupos creados por el usuario
+                val gruposCreadosSnap = db.collection(gruposCollection)
+                    .whereEqualTo("createdBy", uid)
+                    .get()
+                    .await()
+
+                // Unir y evitar duplicados
+                val todosGruposDocs = (gruposCreadosSnap.documents + gruposMiembroSnap.documents)
+                    .distinctBy { it.id }
+
+                grupos = todosGruposDocs.mapNotNull { it.toObject(Group::class.java) }
+
+            } catch (e: Exception) {
+                // Si falla, intentar con "groups"
+                gruposCollection = "groups"
+                val gruposMiembroSnap = db.collection(gruposCollection)
+                    .whereArrayContains("members", uid)
+                    .get()
+                    .await()
+
+                val gruposCreadosSnap = db.collection(gruposCollection)
+                    .whereEqualTo("createdBy", uid)
+                    .get()
+                    .await()
+
+                val todosGruposDocs = (gruposCreadosSnap.documents + gruposMiembroSnap.documents)
+                    .distinctBy { it.id }
+
+                grupos = todosGruposDocs.mapNotNull { it.toObject(Group::class.java) }
+            }
+
         } catch (e: Exception) {
             e.printStackTrace()
+            Toast.makeText(context, "Error cargando grupos: ${e.message}", Toast.LENGTH_LONG).show()
         } finally {
             isLoadingGroups = false
         }
@@ -200,7 +246,12 @@ fun CreatePublication(
                     OutlinedTextField(
                         value = selectedGroup,
                         onValueChange = {},
-                        placeholder = { Text("Seleccionar grupo") },
+                        placeholder = {
+                            Text(
+                                if (grupos.isEmpty()) "No tienes grupos"
+                                else "Seleccionar grupo"
+                            )
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         readOnly = true,
                         trailingIcon = {
@@ -220,6 +271,14 @@ fun CreatePublication(
                                 onClick = { expanded = false }
                             )
                         } else {
+                            // Opción para publicar sin grupo
+                            DropdownMenuItem(
+                                text = { Text("General (sin grupo)") },
+                                onClick = {
+                                    selectedGroup = ""
+                                    expanded = false
+                                }
+                            )
                             grupos.forEach { grupo ->
                                 DropdownMenuItem(
                                     text = { Text(grupo.name) },
@@ -242,16 +301,16 @@ fun CreatePublication(
                     if (texto.text.isNotBlank() || selectedImageUri != null) {
                         val id = UUID.randomUUID().toString()
                         val fecha = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+                        val userId = auth.currentUser?.uid ?: ""
 
-                        val data = hashMapOf(
+                        val data = mapOf(
                             "id" to id,
-                            "autor" to (auth.currentUser?.displayName ?: "Usuario"),
+                            "autor" to userName,
                             "texto" to texto.text,
                             "grupo" to selectedGroup.ifEmpty { "General" },
                             "imagenPath" to (selectedImageUri?.toString() ?: ""),
                             "tiempo" to fecha,
-                            "userId" to auth.currentUser?.uid,
-
+                            "userId" to userId
                         )
 
                         val coleccion = if (tipoPublicacion == "Historia") "historias" else "publicaciones"

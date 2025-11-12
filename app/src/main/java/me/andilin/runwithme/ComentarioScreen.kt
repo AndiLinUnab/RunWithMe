@@ -1,9 +1,9 @@
 package me.andilin.runwithme
 
-
-
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,13 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -46,27 +45,37 @@ fun ComentarioScreen(
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
+    val context = LocalContext.current
 
     var publicacion by remember { mutableStateOf<Publicacion?>(null) }
     var comentarios by remember { mutableStateOf<List<Comentario>>(emptyList()) }
     var nuevoComentario by remember { mutableStateOf("") }
     var currentUserData by remember { mutableStateOf<UserData?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var userDataLoaded by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
     var commentsListener by remember { mutableStateOf<ListenerRegistration?>(null) }
 
-    // Cargar datos de la publicación y comentarios
+
     LaunchedEffect(publicacionId) {
         try {
             // Cargar publicación
             val publicacionDoc = db.collection("publicaciones").document(publicacionId).get().await()
             publicacion = publicacionDoc.toObject(Publicacion::class.java)
 
-            // Cargar datos del usuario actual
+            // Cargar datos del usuario actual desde "usuarios"
             if (currentUser != null) {
-                val userDoc = db.collection("users").document(currentUser.uid).get().await()
-                currentUserData = userDoc.toObject(UserData::class.java)
+                val userDoc = db.collection("usuarios").document(currentUser.uid).get().await()
+                if (userDoc.exists()) {
+                    currentUserData = userDoc.toObject(UserData::class.java)
+                } else {
+                    currentUserData = UserData(
+                        nombre = currentUser.email?.split("@")?.get(0) ?: "Usuario",
+                        correo = currentUser.email ?: ""
+                    )
+                }
+                userDataLoaded = true
             }
 
             // Configurar listener en tiempo real para comentarios
@@ -74,7 +83,10 @@ fun ComentarioScreen(
                 .whereEqualTo("publicacionId", publicacionId)
                 .orderBy("fecha")
                 .addSnapshotListener { snapshot, error ->
-                    if (error != null) return@addSnapshotListener
+                    if (error != null) {
+                        Toast.makeText(context, "Error cargando comentarios: ${error.message}", Toast.LENGTH_SHORT).show()
+                        return@addSnapshotListener
+                    }
 
                     val nuevosComentarios = snapshot?.documents?.mapNotNull { doc ->
                         doc.toObject(Comentario::class.java)?.copy(id = doc.id)
@@ -85,12 +97,13 @@ fun ComentarioScreen(
 
         } catch (e: Exception) {
             e.printStackTrace()
+            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            userDataLoaded = true
         } finally {
             isLoading = false
         }
     }
 
-    // Limpiar listener cuando se desmonte el composable
     DisposableEffect(Unit) {
         onDispose {
             commentsListener?.remove()
@@ -99,25 +112,49 @@ fun ComentarioScreen(
 
     // Función para enviar comentario
     fun enviarComentario() {
-        if (nuevoComentario.isBlank() || currentUser == null || currentUserData == null) return
+        if (nuevoComentario.isBlank()) {
+            Toast.makeText(context, "Escribe un comentario", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (currentUser == null) {
+            Toast.makeText(context, "Debes iniciar sesión", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (!userDataLoaded) {
+            Toast.makeText(context, "Cargando datos del usuario...", Toast.LENGTH_SHORT).show()
+            return
+        }
 
         coroutineScope.launch {
             try {
+                val userName = currentUserData?.nombre ?: currentUser.email?.split("@")?.get(0) ?: "Usuario"
+                val userPhoto = currentUserData?.fotoLocal
+                val userEmail = currentUser.email ?: ""
+
                 val comentario = Comentario(
                     publicacionId = publicacionId,
                     userId = currentUser.uid,
-                    userName = currentUserData?.nombre ?: "Usuario",
-                    userPhoto = currentUserData?.fotoLocal,
-                    userEmail = currentUser.email ?: "",
+                    userName = userName,
+                    userPhoto = userPhoto,
+                    userEmail = userEmail,
                     texto = nuevoComentario.trim(),
                     fecha = Date()
                 )
 
-                db.collection("comentarios").add(comentario).await()
-                nuevoComentario = "" // Limpiar el campo de texto
+                db.collection("comentarios").add(comentario)
+                    .addOnSuccessListener {
+                        nuevoComentario = ""
+                        Toast.makeText(context, "Comentario enviado", Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(context, "Error al enviar: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
 
             } catch (e: Exception) {
                 e.printStackTrace()
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -147,7 +184,6 @@ fun ComentarioScreen(
             )
         },
         bottomBar = {
-            // Input para nuevo comentario
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -210,10 +246,8 @@ fun ComentarioScreen(
                     .fillMaxSize()
                     .background(Color.White)
             ) {
-                // Información de la publicación
                 PublicacionHeader(publicacion!!)
 
-                // Lista de comentarios
                 if (comentarios.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -246,6 +280,19 @@ fun ComentarioScreen(
 
 @Composable
 fun PublicacionHeader(publicacion: Publicacion) {
+    var userPhoto by remember { mutableStateOf<String?>(null) }
+    val db = FirebaseFirestore.getInstance()
+
+    LaunchedEffect(publicacion.userId) {
+        try {
+            val userDoc = db.collection("usuarios").document(publicacion.userId).get().await()
+            val userData = userDoc.toObject(UserData::class.java)
+            userPhoto = userData?.fotoLocal
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -254,11 +301,10 @@ fun PublicacionHeader(publicacion: Publicacion) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // Encabezado (autor + tiempo)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
-                    painter = rememberAsyncImagePainter(publicacion.imagenPath ?: ""),
-                    contentDescription = null,
+                    painter = rememberAsyncImagePainter(userPhoto ?: ""),
+                    contentDescription = "Foto de perfil de ${publicacion.autor}",
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
@@ -272,15 +318,26 @@ fun PublicacionHeader(publicacion: Publicacion) {
 
             Spacer(Modifier.height(8.dp))
 
-            // Texto de la publicación
             Text(
                 publicacion.texto,
                 modifier = Modifier.padding(vertical = 4.dp)
             )
 
-            // Grupo (si existe)
+            if (!publicacion.imagenPath.isNullOrEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Image(
+                    painter = rememberAsyncImagePainter(publicacion.imagenPath),
+                    contentDescription = "Imagen de la publicación",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
             if (publicacion.grupo.isNotBlank()) {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     "En ${publicacion.grupo}",
                     fontSize = 12.sp,
@@ -305,10 +362,9 @@ fun ComentarioItem(comentario: Comentario) {
         Row(
             modifier = Modifier.padding(12.dp)
         ) {
-            // Foto del usuario
             Image(
                 painter = rememberAsyncImagePainter(comentario.userPhoto ?: ""),
-                contentDescription = null,
+                contentDescription = "Foto de perfil de ${comentario.userName}",
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
@@ -316,9 +372,7 @@ fun ComentarioItem(comentario: Comentario) {
 
             Spacer(Modifier.width(8.dp))
 
-            // Contenido del comentario
             Column(modifier = Modifier.weight(1f)) {
-                // Nombre y fecha
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -339,7 +393,6 @@ fun ComentarioItem(comentario: Comentario) {
 
                 Spacer(Modifier.height(4.dp))
 
-                // Texto del comentario
                 Text(
                     comentario.texto,
                     fontSize = 14.sp,
@@ -350,7 +403,6 @@ fun ComentarioItem(comentario: Comentario) {
     }
 }
 
-// Función para formatear la fecha
 fun formatDate(date: Date): String {
     val sdf = SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
     return sdf.format(date)

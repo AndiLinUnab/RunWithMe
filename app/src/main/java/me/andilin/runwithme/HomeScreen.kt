@@ -3,6 +3,7 @@ package me.andilin.runwithme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -44,6 +45,7 @@ import kotlinx.coroutines.tasks.await
 import me.andilin.runwithme.model.Group
 import me.andilin.runwithme.model.Historia
 import me.andilin.runwithme.model.Publicacion
+import me.andilin.runwithme.model.UserData
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -177,27 +179,12 @@ fun HomeScreen(
                             .padding(horizontal = 8.dp)
                     ) {
                         items(historias) { historia ->
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(70.dp)
-                                        .border(2.dp, Color(0xFF40A2E3), CircleShape)
-                                        .padding(3.dp)
-                                ) {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(historia.imagenPath),
-                                        contentDescription = "Historia de ${historia.autor}",
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(CircleShape)
-                                    )
+                            HistoriaItem(
+                                historia = historia,
+                                onClick = {
+                                    navController.navigate("historia/${historia.id}")
                                 }
-                                Spacer(Modifier.height(4.dp))
-                                Text(historia.autor.take(10), fontSize = 12.sp, color = Color.DarkGray)
-                            }
+                            )
                         }
                     }
                     Spacer(Modifier.height(10.dp))
@@ -250,9 +237,50 @@ fun HomeScreen(
     }
 }
 
+// 🔹 NUEVO COMPONENTE: HistoriaItem clickeable
 @Composable
-fun PostItem(post: Publicacion, navController: NavHostController) {
+fun HistoriaItem(historia: Historia, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .padding(horizontal = 8.dp)
+            .clickable { onClick() }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(70.dp)
+                .border(2.dp, Color(0xFF40A2E3), CircleShape)
+                .padding(3.dp)
+        ) {
+            Image(
+                painter = rememberAsyncImagePainter(historia.imagenPath),
+                contentDescription = "Historia de ${historia.autor}",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(historia.autor.take(10), fontSize = 12.sp, color = Color.DarkGray)
+    }
+}
+@Composable
+fun PostItem(post: Publicacion, navController: NavController) {
     var liked by remember { mutableStateOf(false) }
+    var userPhoto by remember { mutableStateOf<String?>(null) }
+    val db = FirebaseFirestore.getInstance()
+
+    // Cargar la foto de perfil del usuario
+    LaunchedEffect(post.userId) {
+        try {
+            val userDoc = db.collection("users").document(post.userId).get().await()
+            val userData = userDoc.toObject(UserData::class.java)
+            userPhoto = userData?.fotoLocal // Esta es la foto de perfil
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     Card(
         modifier = Modifier
@@ -262,18 +290,19 @@ fun PostItem(post: Publicacion, navController: NavHostController) {
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // 🔹 Encabezado (autor + tiempo)
+            // 🔹 Encabezado (autor + tiempo) - USAR FOTO DE PERFIL
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
-                    painter = rememberAsyncImagePainter(post.imagenPath ?: ""),
-                    contentDescription = null,
+                    painter = rememberAsyncImagePainter(userPhoto ?: ""),
+                    contentDescription = "Foto de perfil de ${post.autor}",
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
                 )
                 Spacer(Modifier.width(8.dp))
                 Column {
-                    Text(post.autor, fontWeight = FontWeight.Bold)
+                    // 🔹 CORRECCIÓN: Usar post.autor en lugar de cargar el nombre desde UserData
+                    Text(post.autor, fontWeight = FontWeight.Bold) // Este es el nombre que se guardó al crear la publicación
                     Text(post.tiempo, fontSize = 12.sp, color = Color.Gray)
                 }
             }
@@ -284,11 +313,11 @@ fun PostItem(post: Publicacion, navController: NavHostController) {
             Text(post.texto)
             Spacer(Modifier.height(8.dp))
 
-            // 🔹 Imagen (si hay)
+            // 🔹 Imagen de la publicación (si hay) - ESTA ES LA IMAGEN GRANDE
             if (!post.imagenPath.isNullOrEmpty()) {
                 Image(
                     painter = rememberAsyncImagePainter(post.imagenPath),
-                    contentDescription = null,
+                    contentDescription = "Imagen de la publicación",
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp)
@@ -298,7 +327,7 @@ fun PostItem(post: Publicacion, navController: NavHostController) {
                 Spacer(Modifier.height(8.dp))
             }
 
-            // 🔹 Botones de interacción
+            // 🔹 Botones de like y comentarios
             Row {
                 IconButton(onClick = { liked = !liked }) {
                     Icon(
@@ -310,11 +339,8 @@ fun PostItem(post: Publicacion, navController: NavHostController) {
                         tint = if (liked) Color.Red else Color.Gray
                     )
                 }
-
-                // 🔹 BOTÓN DE COMENTARIOS - AHORA FUNCIONAL
                 IconButton(
                     onClick = {
-                        // Navegar a la pantalla de comentarios con el ID de la publicación
                         navController.navigate("comentarios/${post.id}")
                     }
                 ) {

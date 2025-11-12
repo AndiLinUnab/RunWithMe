@@ -66,7 +66,15 @@ fun Navigation(navController: NavHostController) {
         composable("profile") {
             ProfileScreen(navController = navController)
         }
-
+        composable(
+            "historia/{historiaId}"
+        ) { backStackEntry ->
+            val historiaId = backStackEntry.arguments?.getString("historiaId") ?: ""
+            HistoriaScreen(
+                navController = navController,
+                historiaId = historiaId
+            )
+        }
 
         composable("comentarios/{publicacionId}") { backStackEntry ->
             val publicacionId = backStackEntry.arguments?.getString("publicacionId") ?: ""
