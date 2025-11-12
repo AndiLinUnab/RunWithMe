@@ -1,21 +1,28 @@
 package me.andilin.runwithme
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.auth.FirebaseAuth
@@ -23,7 +30,7 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Mapa(navController: NavHostController? = null) { // Agregar navController como parámetro
+fun Mapa(navController: NavHostController? = null) {
     var currentLatitude by remember { mutableStateOf(0.0) }
     var currentLongitude by remember { mutableStateOf(0.0) }
     var address by remember { mutableStateOf("") }
@@ -39,17 +46,14 @@ fun Mapa(navController: NavHostController? = null) { // Agregar navController co
 
     val activityTypes = listOf("Running", "Ciclismo", "Caminata")
 
-    // Función para obtener ubicación actual (simulada por ahora)
     fun obtenerUbicacionActual() {
-        // En una app real, aquí iría la lógica de GPS
-        currentLatitude = 19.4326  // Ejemplo: Ciudad de México
-        currentLongitude = -99.1332
-        address = "Avenida 42"
+        currentLatitude = 7.1193
+        currentLongitude = -73.1227
+        address = "Calle 45 #27-50"
         city = "Bucaramanga"
         country = "Colombia"
     }
 
-    // Función para guardar datos del mapa en Firebase
     fun guardarMapaEnFirestore() {
         val usuario = auth.currentUser
         if (usuario == null) {
@@ -62,18 +66,8 @@ fun Mapa(navController: NavHostController? = null) { // Agregar navController co
             return
         }
 
-        println("✅ Guardando datos del mapa:")
-        println("   - Latitud: $currentLatitude")
-        println("   - Longitud: $currentLongitude")
-        println("   - Dirección: $address")
-        println("   - Ciudad: $city")
-        println("   - País: $country")
-        println("   - Tipo actividad: $activityType")
-        println("   - Nota: $note")
-
         isLoading = true
 
-        // Crear objeto MapData con data class
         val mapData = MapData(
             userId = usuario.uid,
             userName = usuario.displayName ?: "Usuario",
@@ -89,294 +83,491 @@ fun Mapa(navController: NavHostController? = null) { // Agregar navController co
             timestamp = Date()
         )
 
-        // Guardar en Firestore
         firestore.collection("map_locations")
             .add(mapData)
             .addOnSuccessListener { documento ->
                 isLoading = false
                 showSuccessMessage = true
-                println("✅✅✅ UBICACIÓN GUARDADA EXITOSAMENTE!")
-                println("✅ ID: ${documento.id}")
-                println("✅ Colección: map_locations")
-
-                // Limpiar formulario (opcional)
+                println("✅ UBICACIÓN GUARDADA! ID: ${documento.id}")
                 note = ""
             }
             .addOnFailureListener { error ->
                 isLoading = false
-                println("❌❌❌ ERROR AL GUARDAR: ${error.message}")
+                println("❌ ERROR: ${error.message}")
             }
     }
 
-    // Obtener ubicación al iniciar
     LaunchedEffect(Unit) {
         obtenerUbicacionActual()
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "Mi Mapa",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                navigationIcon = {
-                    // Botón de flecha hacia atrás
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAFC))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header con gradiente
+            Surface(shadowElevation = 4.dp) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFF6366F1),
+                                    Color(0xFF8B5CF6)
+                                )
+                            )
+                        )
+                ) {
                     IconButton(
-                        onClick = {
-                            navController?.popBackStack() // Regresa a la pantalla anterior (HomeScreen)
-                        }
+                        onClick = { navController?.popBackStack() },
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(16.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Regresar",
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = Color.White
                         )
                     }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Mensaje de éxito
-            if (showSuccessMessage) {
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 50.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Outlined.Map,
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                            tint = Color.White
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Mi Ubicación",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Mensaje de éxito
+                AnimatedVisibility(
+                    visible = showSuccessMessage,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color(0xFF10B981),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    "¡Ubicación guardada exitosamente!",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            IconButton(onClick = { showSuccessMessage = false }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Cerrar",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Ubicación actual
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2196F3))
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Text(
-                            text = "✅ Ubicación guardada exitosamente!",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = { showSuccessMessage = false }
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cerrar mensaje",
-                                tint = Color.White
+                                Icons.Outlined.MyLocation,
+                                contentDescription = null,
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Ubicación Actual",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                        }
+
+                        // Coordenadas en cards
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                color = Color(0xFF6366F1).copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        "Latitud",
+                                        fontSize = 12.sp,
+                                        color = Color.Gray,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        String.format("%.6f", currentLatitude),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF6366F1)
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                color = Color(0xFF8B5CF6).copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        "Longitud",
+                                        fontSize = 12.sp,
+                                        color = Color.Gray,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        String.format("%.6f", currentLongitude),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF8B5CF6)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Dirección
+                        OutlinedTextField(
+                            value = address,
+                            onValueChange = { address = it },
+                            label = { Text("Dirección") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Outlined.Home,
+                                    contentDescription = null,
+                                    tint = Color(0xFF6366F1)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF6366F1),
+                                focusedLabelColor = Color(0xFF6366F1),
+                                cursorColor = Color(0xFF6366F1)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = city,
+                                onValueChange = { city = it },
+                                label = { Text("Ciudad") },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Outlined.LocationCity,
+                                        contentDescription = null,
+                                        tint = Color(0xFF6366F1)
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF6366F1),
+                                    focusedLabelColor = Color(0xFF6366F1),
+                                    cursorColor = Color(0xFF6366F1)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            OutlinedTextField(
+                                value = country,
+                                onValueChange = { country = it },
+                                label = { Text("País") },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Outlined.Public,
+                                        contentDescription = null,
+                                        tint = Color(0xFF6366F1)
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF6366F1),
+                                    focusedLabelColor = Color(0xFF6366F1),
+                                    cursorColor = Color(0xFF6366F1)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             )
                         }
                     }
                 }
-            }
 
-            // Loading
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    contentAlignment = Alignment.Center
+                // Tipo de actividad
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
                 ) {
-                    CircularProgressIndicator()
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.DirectionsRun,
+                                contentDescription = null,
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Tipo de Actividad",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            activityTypes.forEach { type ->
+                                FilterChip(
+                                    selected = activityType == type,
+                                    onClick = { activityType = type },
+                                    label = {
+                                        Text(
+                                            type,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (activityType == type)
+                                                FontWeight.SemiBold else FontWeight.Normal
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            when (type) {
+                                                "Running" -> Icons.Outlined.DirectionsRun
+                                                "Ciclismo" -> Icons.Outlined.DirectionsBike
+                                                else -> Icons.Outlined.DirectionsWalk
+                                            },
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFF8B5CF6),
+                                        selectedLabelColor = Color.White,
+                                        selectedLeadingIconColor = Color.White,
+                                        containerColor = Color(0xFFF3F4F6)
+                                    )
+                                )
+                            }
+                        }
+                    }
                 }
-            }
 
-            // NOTA: EL TÍTULO "MI MAPA" YA NO VA AQUÍ, ESTÁ EN EL TOPBAR
-
-            // Información de ubicación
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                // Nota adicional
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.Note,
+                                contentDescription = null,
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Nota Adicional",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                        }
+
+                        OutlinedTextField(
+                            value = note,
+                            onValueChange = { note = it },
+                            placeholder = { Text("Agrega una nota sobre esta ubicación...") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(100.dp),
+                            maxLines = 4,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF6366F1),
+                                focusedLabelColor = Color(0xFF6366F1),
+                                cursorColor = Color(0xFF6366F1)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                }
+
+                // Botones de acción
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { obtenerUbicacionActual() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFF6366F1)
+                        )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = "Ubicación",
-                            tint = MaterialTheme.colorScheme.primary
+                            Icons.Outlined.MyLocation,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
                         )
+                        Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Ubicación Actual",
-                            style = MaterialTheme.typography.titleMedium,
+                            "Actualizar",
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
 
-                    // Coordenadas
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Button(
+                        onClick = { guardarMapaEnFirestore() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        enabled = !isLoading && currentLatitude != 0.0 && currentLongitude != 0.0,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF6366F1),
+                            disabledContainerColor = Color.LightGray
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        elevation = ButtonDefaults.buttonElevation(4.dp)
                     ) {
-                        Text("Latitud:", fontWeight = FontWeight.Medium)
-                        Text(String.format("%.6f", currentLatitude))
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Longitud:", fontWeight = FontWeight.Medium)
-                        Text(String.format("%.6f", currentLongitude))
-                    }
-
-                    // Dirección
-                    OutlinedTextField(
-                        value = address,
-                        onValueChange = { address = it },
-                        label = { Text("Dirección") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = city,
-                            onValueChange = { city = it },
-                            label = { Text("Ciudad") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = country,
-                            onValueChange = { country = it },
-                            label = { Text("País") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                    }
-                }
-            }
-
-            // Tipo de actividad
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Tipo de Actividad",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        activityTypes.forEach { type ->
-                            FilterChip(
-                                selected = activityType == type,
-                                onClick = { activityType = type },
-                                label = { Text(type) },
-                                modifier = Modifier.weight(1f)
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Outlined.Save,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Guardar",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                 }
-            }
 
-            // Nota adicional
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+                // Información
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color(0xFFDBEAFE),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(
-                        text = "Nota Adicional",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = note,
-                        onValueChange = { note = it },
-                        label = { Text("Agrega una nota sobre esta ubicación...") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
-                        singleLine = false
-                    )
-                }
-            }
-
-            // Botones de acción
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Botón actualizar ubicación
-                OutlinedButton(
-                    onClick = { obtenerUbicacionActual() },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.LocationOn, contentDescription = "Actualizar ubicación")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Actualizar Ubicación")
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Outlined.Info,
+                            contentDescription = null,
+                            tint = Color(0xFF2563EB),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "Esta ubicación se compartirá con otros runners de la comunidad",
+                            fontSize = 13.sp,
+                            color = Color(0xFF1E40AF),
+                            lineHeight = 18.sp
+                        )
+                    }
                 }
 
-                // Botón guardar
-                Button(
-                    onClick = { guardarMapaEnFirestore() },
-                    modifier = Modifier.weight(1f),
-                    enabled = !isLoading && currentLatitude != 0.0 && currentLongitude != 0.0
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = "Guardar")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Guardar Ubicación")
-                }
-            }
-
-            // Información adicional
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "ℹ️ Información",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1976D2)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Esta ubicación se guardará en Firebase y podrá ser vista por otros usuarios de la app.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF424242)
-                    )
-                }
+                Spacer(Modifier.height(16.dp))
             }
         }
     }

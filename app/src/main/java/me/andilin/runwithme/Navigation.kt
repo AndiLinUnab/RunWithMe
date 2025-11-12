@@ -28,7 +28,7 @@ fun Navigation(navController: NavHostController) {
         // --- Pantalla de Registro ---
         composable("register") {
             RegisterScreen(
-                navController = navController, // 🔹 Este es el que te faltaba
+                navController = navController,
                 onClickBack = { navController.popBackStack() },
                 onSuccessfulRegister = {
                     navController.navigate("home") {
@@ -53,12 +53,25 @@ fun Navigation(navController: NavHostController) {
                 onBack = { navController.popBackStack() }
             )
         }
+
+        // --- Crear grupo ---
         composable("crear_grupo") {
-            Grupos(navController = navController) // Tu frame de crear grupos
+            Grupos(navController = navController)
         }
 
+        // --- NUEVO: Unirse a grupos ---
+        composable("unir_grupo") {
+            UnirGrupo(navController = navController)
+        }
+
+        // --- NUEVO: Notificaciones ---
+        composable("notificaciones") {
+            NotificacionesScreen(navController = navController)
+        }
+
+        // --- Mapa ---
         composable("mapa") {
-            Mapa(navController = navController) // Asegúrate de que tu Mapa.kt acepte navController
+            Mapa(navController = navController)
         }
 
         // --- Perfil ---

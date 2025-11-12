@@ -1,23 +1,29 @@
 package me.andilin.runwithme
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.auth.FirebaseAuth
@@ -33,8 +39,8 @@ fun Grupos(navController: NavHostController? = null) {
     var selectedType by remember { mutableStateOf("Running") }
     var distance by remember { mutableStateOf(15f) }
     var selectedDays by remember { mutableStateOf(setOf<String>()) }
-    var selectedHour by remember { mutableStateOf(18) } // Hora (0-23)
-    var selectedMinute by remember { mutableStateOf(0) } // Minutos (0-59)
+    var selectedHour by remember { mutableStateOf(18) }
+    var selectedMinute by remember { mutableStateOf(0) }
     var isLoading by remember { mutableStateOf(false) }
     var showSuccessMessage by remember { mutableStateOf(false) }
 
@@ -44,23 +50,20 @@ fun Grupos(navController: NavHostController? = null) {
     val experienceLevels = listOf("Principiante", "Intermedio", "Avanzado")
     val sportTypes = listOf("Running", "Ciclismo")
     val hours = (0..23).toList()
-    val minutes = listOf(0, 15, 30, 45) // Opciones de minutos: 00, 15, 30, 45
+    val minutes = listOf(0, 15, 30, 45)
 
-    // Definimos los colores para cada nivel
     val levelColors = mapOf(
-        "Principiante" to Color(0xFF4CAF50), // Verde
-        "Intermedio" to Color(0xFFFFC107),   // Amarillo
-        "Avanzado" to Color(0xFF4CAF50)      // Verde
+        "Principiante" to Color(0xFF10B981),
+        "Intermedio" to Color(0xFFF59E0B),
+        "Avanzado" to Color(0xFFEF4444)
     )
 
-    // Función para formatear la hora
     fun formatTime(hour: Int, minute: Int): String {
         val period = if (hour < 12) "AM" else "PM"
         val displayHour = if (hour == 0) 12 else if (hour > 12) hour - 12 else hour
         return String.format("%d:%02d %s", displayHour, minute, period)
     }
 
-    // Función para guardar en Firestore
     fun guardarGrupoEnFirestore() {
         val usuario = auth.currentUser
         if (usuario == null) {
@@ -74,11 +77,8 @@ fun Grupos(navController: NavHostController? = null) {
         }
 
         isLoading = true
-
-        // Formatear la hora para guardar (formato 24h)
         val meetingTime = String.format("%02d:%02d", selectedHour, selectedMinute)
 
-        // Crear el mapa de datos para Firestore
         val datosGrupo = hashMapOf(
             "name" to groupName,
             "description" to groupDescription,
@@ -86,7 +86,7 @@ fun Grupos(navController: NavHostController? = null) {
             "sportType" to selectedType,
             "distance" to distance,
             "trainingDays" to selectedDays.toList(),
-            "meetingTime" to meetingTime, // Hora exacta seleccionada
+            "meetingTime" to meetingTime,
             "location" to hashMapOf(
                 "useCurrentLocation" to useCurrentLocation,
                 "latitude" to 0.0,
@@ -100,21 +100,20 @@ fun Grupos(navController: NavHostController? = null) {
             "imageUrl" to ""
         )
 
-        // Guardar en Firestore
         firestore.collection("grupos")
             .add(datosGrupo)
             .addOnSuccessListener { documento ->
                 isLoading = false
                 showSuccessMessage = true
                 println("✅ Grupo guardado exitosamente! ID: ${documento.id}")
-                println("🕐 Hora guardada: $meetingTime")
 
-                // Limpiar el formulario
+                // Limpiar formulario
                 groupName = ""
                 groupDescription = ""
                 selectedDays = emptySet()
                 selectedHour = 18
                 selectedMinute = 0
+                distance = 15f
             }
             .addOnFailureListener { error ->
                 isLoading = false
@@ -122,348 +121,605 @@ fun Grupos(navController: NavHostController? = null) {
             }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "Crear grupo",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                navigationIcon = {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAFC))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header con gradiente
+            Surface(shadowElevation = 4.dp) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFF6366F1),
+                                    Color(0xFF8B5CF6)
+                                )
+                            )
+                        )
+                ) {
                     IconButton(
-                        onClick = {
-                            navController?.popBackStack()
-                        }
+                        onClick = { navController?.popBackStack() },
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(16.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Regresar",
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = Color.White
                         )
                     }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Mensaje de éxito
-            if (showSuccessMessage) {
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 50.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Outlined.Groups,
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                            tint = Color.White
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Crear Grupo",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Mensaje de éxito
+                AnimatedVisibility(
+                    visible = showSuccessMessage,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color(0xFF10B981),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    "¡Grupo creado exitosamente!",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            IconButton(onClick = { showSuccessMessage = false }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Cerrar",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Info básica
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50))
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.Info,
+                                contentDescription = null,
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Información básica",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                        }
+
+                        OutlinedTextField(
+                            value = groupName,
+                            onValueChange = { groupName = it },
+                            label = { Text("Nombre del grupo") },
+                            placeholder = { Text("Ej: Runners Bogotá") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Outlined.Group,
+                                    contentDescription = null,
+                                    tint = Color(0xFF6366F1)
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF6366F1),
+                                focusedLabelColor = Color(0xFF6366F1),
+                                cursorColor = Color(0xFF6366F1)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = groupDescription,
+                            onValueChange = { groupDescription = it },
+                            label = { Text("Descripción") },
+                            placeholder = { Text("Describe tu grupo de running...") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Outlined.Description,
+                                    contentDescription = null,
+                                    tint = Color(0xFF6366F1)
+                                )
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            maxLines = 4,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF6366F1),
+                                focusedLabelColor = Color(0xFF6366F1),
+                                cursorColor = Color(0xFF6366F1)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        OutlinedButton(
+                            onClick = { /* Subir imagen */ },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF6366F1)
+                            )
+                        ) {
+                            Icon(
+                                Icons.Outlined.AddPhotoAlternate,
+                                contentDescription = null
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Subir imagen del grupo")
+                        }
+                    }
+                }
+
+                // Nivel de experiencia
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.EmojiEvents,
+                                contentDescription = null,
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Nivel de experiencia",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            experienceLevels.forEach { level ->
+                                val backgroundColor = levelColors[level] ?: Color(0xFF6366F1)
+                                FilterChip(
+                                    selected = selectedExperience == level,
+                                    onClick = { selectedExperience = level },
+                                    label = {
+                                        Text(
+                                            level,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (selectedExperience == level)
+                                                FontWeight.SemiBold else FontWeight.Normal
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = backgroundColor,
+                                        selectedLabelColor = Color.White,
+                                        containerColor = Color(0xFFF3F4F6)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Días de entrenamiento
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.CalendarMonth,
+                                contentDescription = null,
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    "Días de entrenamiento",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1F2937)
+                                )
+                                if (selectedDays.isNotEmpty()) {
+                                    Text(
+                                        "${selectedDays.size} día${if (selectedDays.size > 1) "s" else ""} seleccionado${if (selectedDays.size > 1) "s" else ""}",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF6366F1)
+                                    )
+                                }
+                            }
+                        }
+                        TrainingDaysSectionWithScroll(selectedDays) { nuevosDias ->
+                            selectedDays = nuevosDias
+                        }
+                    }
+                }
+
+                // Hora de salida
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.Schedule,
+                                contentDescription = null,
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Hora de salida",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                        }
+
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF6366F1).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    Icons.Outlined.AccessTime,
+                                    contentDescription = null,
+                                    tint = Color(0xFF6366F1),
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    formatTime(selectedHour, selectedMinute),
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF6366F1)
+                                )
+                            }
+                        }
+
+                        Text(
+                            "Hora:",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF6B7280)
+                        )
+                        HourSelector(
+                            hours = hours,
+                            selectedHour = selectedHour,
+                            onHourSelected = { selectedHour = it }
+                        )
+
+                        Text(
+                            "Minutos:",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF6B7280)
+                        )
+                        MinuteSelector(
+                            minutes = minutes,
+                            selectedMinute = selectedMinute,
+                            onMinuteSelected = { selectedMinute = it }
+                        )
+                    }
+                }
+
+                // Distancia
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Outlined.Route,
+                                    contentDescription = null,
+                                    tint = Color(0xFF6366F1),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Distancia",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1F2937)
+                                )
+                            }
+                            Surface(
+                                color = Color(0xFF6366F1).copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    "${distance.toInt()} km",
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF6366F1),
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+
+                        Slider(
+                            value = distance,
+                            onValueChange = { distance = it },
+                            valueRange = 1f..50f,
+                            steps = 49,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF6366F1),
+                                activeTrackColor = Color(0xFF6366F1),
+                                inactiveTrackColor = Color(0xFF6366F1).copy(alpha = 0.2f)
+                            )
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("1 km", fontSize = 12.sp, color = Color.Gray)
+                            Text("50 km", fontSize = 12.sp, color = Color.Gray)
+                        }
+                    }
+                }
+
+                // Tipo de actividad
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.DirectionsRun,
+                                contentDescription = null,
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Tipo de actividad",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            sportTypes.forEach { type ->
+                                FilterChip(
+                                    selected = selectedType == type,
+                                    onClick = { selectedType = type },
+                                    label = {
+                                        Text(
+                                            type,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (selectedType == type)
+                                                FontWeight.SemiBold else FontWeight.Normal
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            if (type == "Running") Icons.Outlined.DirectionsRun
+                                            else Icons.Outlined.DirectionsBike,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFF8B5CF6),
+                                        selectedLabelColor = Color.White,
+                                        selectedLeadingIconColor = Color.White,
+                                        containerColor = Color(0xFFF3F4F6)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Ubicación
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "✅ Grupo creado exitosamente!",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = { showSuccessMessage = false }
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cerrar mensaje",
-                                tint = Color.White
+                                Icons.Outlined.LocationOn,
+                                contentDescription = null,
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(24.dp)
                             )
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    "Usar mi ubicación actual",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1F2937),
+                                    fontSize = 15.sp
+                                )
+                                Text(
+                                    "Punto de encuentro",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
+                            }
                         }
+                        Switch(
+                            checked = useCurrentLocation,
+                            onCheckedChange = { useCurrentLocation = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF6366F1)
+                            )
+                        )
                     }
                 }
-            }
 
-            // Loading
-            if (isLoading) {
-                Box(
+                // Botón crear grupo
+                Button(
+                    onClick = { guardarGrupoEnFirestore() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    contentAlignment = Alignment.Center
+                    enabled = !isLoading && groupName.isNotEmpty() && selectedDays.isNotEmpty(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF6366F1),
+                        disabledContainerColor = Color.LightGray
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = ButtonDefaults.buttonElevation(4.dp)
                 ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            // Campo nombre
-            OutlinedTextField(
-                value = groupName,
-                onValueChange = { groupName = it },
-                label = { Text("Nombre del grupo") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            // Campo descripción
-            OutlinedTextField(
-                value = groupDescription,
-                onValueChange = { groupDescription = it },
-                label = { Text("Descripción del grupo") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp),
-                singleLine = false
-            )
-
-            // Botón subir imagen
-            OutlinedButton(
-                onClick = { /* Acción para subir imagen */ },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Subir imagen")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Subir imagen")
-            }
-
-            // Sección Ubicación
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Ubicación",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Usar mi ubicación actual")
-                        Switch(
-                            checked = useCurrentLocation,
-                            onCheckedChange = { useCurrentLocation = it }
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
                         )
-                    }
-                }
-            }
-
-            // Nivel de experiencia
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Nivel de experiencia",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        experienceLevels.forEach { level ->
-                            val backgroundColor = levelColors[level] ?: MaterialTheme.colorScheme.primary
-
-                            FilterChip(
-                                selected = selectedExperience == level,
-                                onClick = { selectedExperience = level },
-                                label = {
-                                    Text(
-                                        level,
-                                        color = if (selectedExperience == level) Color.White else MaterialTheme.colorScheme.onSurface
-                                    )
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = backgroundColor,
-                                    selectedLabelColor = Color.White,
-                                    selectedLeadingIconColor = Color.White,
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    labelColor = MaterialTheme.colorScheme.onSurface
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            // SECCIÓN SEPARADA: Días de entrenamiento CON SCROLL HORIZONTAL
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "Días de entrenamiento",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    TrainingDaysSectionWithScroll(selectedDays) { nuevosDias ->
-                        selectedDays = nuevosDias
-                    }
-                }
-            }
-
-            // SECCIÓN: Hora de salida
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    } else {
                         Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = "Hora",
-                            tint = MaterialTheme.colorScheme.primary
+                            Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
                         )
+                        Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Hora de salida",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
+                            "Crear Grupo",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-
-                    // Hora seleccionada
-                    Text(
-                        text = "Hora seleccionada: ${formatTime(selectedHour, selectedMinute)}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    // Selector de hora
-                    Text(
-                        text = "Hora:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    HourSelector(
-                        hours = hours,
-                        selectedHour = selectedHour,
-                        onHourSelected = { selectedHour = it }
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Selector de minutos
-                    Text(
-                        text = "Minutos:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    MinuteSelector(
-                        minutes = minutes,
-                        selectedMinute = selectedMinute,
-                        onMinuteSelected = { selectedMinute = it }
-                    )
                 }
-            }
 
-            // Distancia
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Distancia: ${distance.toInt()} km",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Slider(
-                        value = distance,
-                        onValueChange = { distance = it },
-                        valueRange = 1f..50f,
-                        steps = 49,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-
-            // Tipo de actividad
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Tipo",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        sportTypes.forEach { type ->
-                            FilterChip(
-                                selected = selectedType == type,
-                                onClick = { selectedType = type },
-                                label = { Text(type) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Botón crear grupo
-            Button(
-                onClick = { guardarGrupoEnFirestore() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = !isLoading && groupName.isNotEmpty() && selectedDays.isNotEmpty(),
-                elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 8.dp)
-            ) {
-                Text(
-                    "Crear grupo",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
 }
 
-// NUEVO: TrainingDaysSection con Scroll Horizontal
 @Composable
 fun TrainingDaysSectionWithScroll(
     selectedDays: Set<String>,
@@ -473,67 +729,51 @@ fun TrainingDaysSectionWithScroll(
     val fullDays = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
     val scrollState = rememberScrollState()
 
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(scrollState),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = "Selecciona los días:",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
-
-        // Contenedor con scroll horizontal
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(scrollState),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            daysOfWeek.forEachIndexed { index, day ->
-                val isSelected = selectedDays.contains(fullDays[index])
-                AssistChip(
-                    onClick = {
-                        val nuevosDias = if (isSelected) {
-                            selectedDays - fullDays[index]
-                        } else {
-                            selectedDays + fullDays[index]
-                        }
-                        onSelectedDaysChange(nuevosDias)
-                    },
-                    label = {
-                        Text(
-                            text = when (day) {
-                                "L" -> "Lun"
-                                "M" -> "Mar"
-                                "X" -> "Mié"
-                                "J" -> "Jue"
-                                "V" -> "Vie"
-                                "S" -> "Sáb"
-                                "D" -> "Dom"
-                                else -> day
-                            },
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = if (isSelected) Icons.Default.Check else Icons.Default.Add,
-                            contentDescription = if (isSelected) "Seleccionado" else "No seleccionado"
-                        )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(
-                        leadingIconContentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        containerColor = if (isSelected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surfaceVariant
+        daysOfWeek.forEachIndexed { index, day ->
+            val isSelected = selectedDays.contains(fullDays[index])
+            FilterChip(
+                selected = isSelected,
+                onClick = {
+                    val nuevosDias = if (isSelected) {
+                        selectedDays - fullDays[index]
+                    } else {
+                        selectedDays + fullDays[index]
+                    }
+                    onSelectedDaysChange(nuevosDias)
+                },
+                label = {
+                    Text(
+                        fullDays[index],
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                     )
+                },
+                leadingIcon = {
+                    if (isSelected) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFF6366F1),
+                    selectedLabelColor = Color.White,
+                    selectedLeadingIconColor = Color.White,
+                    containerColor = Color(0xFFF3F4F6)
                 )
-            }
+            )
         }
     }
 }
 
-// Selector de hora
 @Composable
 fun HourSelector(
     hours: List<Int>,
@@ -559,20 +799,20 @@ fun HourSelector(
                 label = {
                     Text(
                         "$displayHour $period",
-                        style = MaterialTheme.typography.bodySmall
+                        fontSize = 12.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedContainerColor = Color(0xFF8B5CF6),
                     selectedLabelColor = Color.White,
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = Color(0xFFF3F4F6)
                 )
             )
         }
     }
 }
 
-// Selector de minutos
 @Composable
 fun MinuteSelector(
     minutes: List<Int>,
@@ -592,13 +832,15 @@ fun MinuteSelector(
                 label = {
                     Text(
                         String.format("%02d", minute),
-                        style = MaterialTheme.typography.bodySmall
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 },
+                modifier = Modifier.weight(1f),
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedContainerColor = Color(0xFF8B5CF6),
                     selectedLabelColor = Color.White,
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = Color(0xFFF3F4F6)
                 )
             )
         }

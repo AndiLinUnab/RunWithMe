@@ -1,4 +1,3 @@
-// Group.kt
 package me.andilin.runwithme.model
 
 import com.google.firebase.firestore.DocumentId
