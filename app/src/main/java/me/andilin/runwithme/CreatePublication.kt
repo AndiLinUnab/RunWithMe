@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +40,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +60,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
+import me.andilin.runwithme.model.Group
 import me.andilin.runwithme.model.Publicacion
 
 import java.text.SimpleDateFormat
@@ -67,7 +71,6 @@ import java.util.UUID
 
 val publicacionesGlobales = mutableStateListOf<Publicacion>()
 
-// ------------------- CREAR PUBLICACIÓN -------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePublication(
@@ -77,11 +80,31 @@ fun CreatePublication(
     var texto by remember { mutableStateOf(TextFieldValue("")) }
     var selectedGroup by remember { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var tipoPublicacion by remember { mutableStateOf("Publicación") } // 👈 Nueva variable
-    val grupos = listOf("Runners Bogotá", "Atletas del Sol", "Nocturnos 5K")
+    var tipoPublicacion by remember { mutableStateOf("Publicación") }
 
     val db = FirebaseFirestore.getInstance()
+    val auth = FirebaseAuth.getInstance()
     val context = LocalContext.current
+
+    // 🔹 Lista dinámica de grupos del usuario
+    var grupos by remember { mutableStateOf<List<Group>>(emptyList()) }
+    var isLoadingGroups by remember { mutableStateOf(true) }
+
+    // 🔹 Cargar grupos donde el usuario es miembro
+    LaunchedEffect(Unit) {
+        try {
+            val uid = auth.currentUser?.uid ?: return@LaunchedEffect
+            val snapshot = db.collection("groups")
+                .whereArrayContains("members", uid)
+                .get()
+                .await()
+            grupos = snapshot.toObjects(Group::class.java)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            isLoadingGroups = false
+        }
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -106,13 +129,10 @@ fun CreatePublication(
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- Selector tipo de publicación ---
+            // --- Selector tipo ---
             Text("Tipo de contenido", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
             Spacer(Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 listOf("Publicación", "Historia").forEach { tipo ->
                     FilterChip(
                         selected = tipoPublicacion == tipo,
@@ -124,7 +144,7 @@ fun CreatePublication(
 
             Spacer(Modifier.height(20.dp))
 
-            // --- Campo de texto ---
+            // --- Texto ---
             OutlinedTextField(
                 value = texto,
                 onValueChange = { texto = it },
@@ -139,7 +159,6 @@ fun CreatePublication(
             // --- Imagen ---
             Text("Subir foto", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
             Spacer(Modifier.height(8.dp))
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -152,14 +171,14 @@ fun CreatePublication(
                 if (selectedImageUri != null) {
                     Image(
                         painter = rememberAsyncImagePainter(selectedImageUri),
-                        contentDescription = "Imagen seleccionada",
+                        contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.AddPhotoAlternate,
-                        contentDescription = "Agregar foto",
+                        contentDescription = null,
                         tint = Color.Gray,
                         modifier = Modifier.size(50.dp)
                     )
@@ -169,36 +188,48 @@ fun CreatePublication(
             Spacer(Modifier.height(20.dp))
 
             // --- Menú desplegable de grupos ---
-            Text("Grupos", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+            Text("Grupo", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
             Spacer(Modifier.height(8.dp))
+
             var expanded by remember { mutableStateOf(false) }
 
-            Box {
-                OutlinedTextField(
-                    value = selectedGroup,
-                    onValueChange = {},
-                    placeholder = { Text("Seleccionar grupo") },
-                    modifier = Modifier.fillMaxWidth(),
-                    readOnly = true,
-                    trailingIcon = {
-                        IconButton(onClick = { expanded = true }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Desplegar")
-                        }
-                    }
-                )
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.background(Color.White)
-                ) {
-                    grupos.forEach { grupo ->
-                        DropdownMenuItem(
-                            text = { Text(grupo) },
-                            onClick = {
-                                selectedGroup = grupo
-                                expanded = false
+            if (isLoadingGroups) {
+                CircularProgressIndicator()
+            } else {
+                Box {
+                    OutlinedTextField(
+                        value = selectedGroup,
+                        onValueChange = {},
+                        placeholder = { Text("Seleccionar grupo") },
+                        modifier = Modifier.fillMaxWidth(),
+                        readOnly = true,
+                        trailingIcon = {
+                            IconButton(onClick = { expanded = true }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBackIos, contentDescription = "Desplegar")
                             }
-                        )
+                        }
+                    )
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        if (grupos.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("No perteneces a ningún grupo") },
+                                onClick = { expanded = false }
+                            )
+                        } else {
+                            grupos.forEach { grupo ->
+                                DropdownMenuItem(
+                                    text = { Text(grupo.name) },
+                                    onClick = {
+                                        selectedGroup = grupo.name
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -214,11 +245,13 @@ fun CreatePublication(
 
                         val data = hashMapOf(
                             "id" to id,
-                            "autor" to (FirebaseAuth.getInstance().currentUser?.displayName ?: "Usuario"),
+                            "autor" to (auth.currentUser?.displayName ?: "Usuario"),
                             "texto" to texto.text,
                             "grupo" to selectedGroup.ifEmpty { "General" },
                             "imagenPath" to (selectedImageUri?.toString() ?: ""),
-                            "tiempo" to fecha
+                            "tiempo" to fecha,
+                            "userId" to auth.currentUser?.uid,
+
                         )
 
                         val coleccion = if (tipoPublicacion == "Historia") "historias" else "publicaciones"

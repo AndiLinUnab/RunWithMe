@@ -57,11 +57,15 @@ fun HomeScreen(
 
     var publicaciones by remember { mutableStateOf<List<Publicacion>>(emptyList()) }
     var historias by remember { mutableStateOf<List<Historia>>(emptyList()) }
+    var grupos by remember { mutableStateOf<List<Group>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // 🔹 Cargar publicaciones e historias desde Firestore
+    // 🔹 Cargar datos desde Firestore
     LaunchedEffect(Unit) {
         try {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return@LaunchedEffect
+
+            // 🔹 Cargar publicaciones e historias
             val publicacionesSnap = db.collection("publicaciones")
                 .orderBy("tiempo")
                 .get()
@@ -71,8 +75,25 @@ fun HomeScreen(
                 .get()
                 .await()
 
+            // 🔹 Cargar grupos del usuario (como miembro o creador)
+            val gruposCreadosSnap = db.collection("grupos")
+                .whereEqualTo("createdBy", uid)
+                .get()
+                .await()
+
+            val gruposMiembroSnap = db.collection("grupos")
+                .whereArrayContains("members", uid)
+                .get()
+                .await()
+
+            // 🔹 Unir y evitar duplicados
+            val todosGruposDocs = (gruposCreadosSnap.documents + gruposMiembroSnap.documents)
+                .distinctBy { it.id }
+
             publicaciones = publicacionesSnap.toObjects(Publicacion::class.java).reversed()
             historias = historiasSnap.toObjects(Historia::class.java).reversed()
+            grupos = todosGruposDocs.mapNotNull { it.toObject(Group::class.java) }
+
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
@@ -109,57 +130,17 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 🔹 BOTÓN GRUPOS
-                        IconButton(
-                            onClick = {
-                                navController.navigate("crear_grupo")
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.Groups,
-                                contentDescription = "Grupos",
-                                tint = Color.White
-                            )
+                        IconButton(onClick = { navController.navigate("crear_grupo") }) {
+                            Icon(Icons.Default.Groups, contentDescription = "Grupos", tint = Color.White)
                         }
-
-                        // 🔹 NUEVO BOTÓN MAPA
-                        IconButton(
-                            onClick = {
-                                navController.navigate("mapa")
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.Map,
-                                contentDescription = "Mapa",
-                                tint = Color.White
-                            )
+                        IconButton(onClick = { navController.navigate("mapa") }) {
+                            Icon(Icons.Default.Map, contentDescription = "Mapa", tint = Color.White)
                         }
-
-                        // 🔹 BOTÓN HOME
-                        IconButton(
-                            onClick = {
-                                // Ya estamos en home, pero puedes agregar funcionalidad
-                                // como scroll to top si quieres
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.Home,
-                                contentDescription = "Home",
-                                tint = Color.White
-                            )
+                        IconButton(onClick = { /* Ya estás en Home */ }) {
+                            Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White)
                         }
-
-                        // 🔹 BOTÓN PERFIL
-                        IconButton(
-                            onClick = {
-                                navController.navigate("profile")
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.Person,
-                                contentDescription = "Perfil",
-                                tint = Color.White
-                            )
+                        IconButton(onClick = { navController.navigate("profile") }) {
+                            Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White)
                         }
                     }
                 }
@@ -182,7 +163,7 @@ fun HomeScreen(
                     .fillMaxSize()
                     .background(Color.White)
             ) {
-                // 🔹 Sección de historias (solo si existen)
+                // 🔹 Historias
                 if (historias.isNotEmpty()) {
                     Text(
                         text = "Historias recientes",
@@ -190,7 +171,6 @@ fun HomeScreen(
                         fontSize = 18.sp,
                         modifier = Modifier.padding(12.dp)
                     )
-
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -216,47 +196,44 @@ fun HomeScreen(
                                     )
                                 }
                                 Spacer(Modifier.height(4.dp))
-                                Text(
-                                    historia.autor.take(10),
-                                    fontSize = 12.sp,
-                                    color = Color.DarkGray
-                                )
+                                Text(historia.autor.take(10), fontSize = 12.sp, color = Color.DarkGray)
                             }
                         }
                     }
                     Spacer(Modifier.height(10.dp))
                 }
 
-                // 🔹 Mis grupos (placeholder hasta conectar con Firestore)
-                Text(
-                    text = "Mis grupos",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp)
-                )
+                // 🔹 Mis grupos (solo si existen)
+                if (grupos.isNotEmpty()) {
+                    Text(
+                        text = "Mis grupos",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp)
+                    )
 
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                ) {
-                    val grupos = listOf("Runners Bogotá", "Atletas del Sol", "Nocturnos 5K")
-                    items(grupos) { grupo ->
-                        Card(
-                            modifier = Modifier
-                                .padding(6.dp)
-                                .size(width = 130.dp, height = 70.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFEDF6FF)),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                Text(grupo, fontWeight = FontWeight.Bold)
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                    ) {
+                        items(grupos) { grupo ->
+                            Card(
+                                modifier = Modifier
+                                    .padding(6.dp)
+                                    .size(width = 130.dp, height = 70.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFEDF6FF)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    Text(grupo.name, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
-                }
 
-                Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(10.dp))
+                }
 
                 // 🔹 Publicaciones
                 LazyColumn(
@@ -265,7 +242,7 @@ fun HomeScreen(
                         .padding(horizontal = 8.dp)
                 ) {
                     items(publicaciones) { post ->
-                        PostItem(post)
+                        PostItem(post = post, navController = navController)
                     }
                 }
             }
@@ -274,7 +251,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun PostItem(post: Publicacion) {
+fun PostItem(post: Publicacion, navController: NavHostController) {
     var liked by remember { mutableStateOf(false) }
 
     Card(
@@ -285,6 +262,7 @@ fun PostItem(post: Publicacion) {
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
+            // 🔹 Encabezado (autor + tiempo)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
                     painter = rememberAsyncImagePainter(post.imagenPath ?: ""),
@@ -301,9 +279,12 @@ fun PostItem(post: Publicacion) {
             }
 
             Spacer(Modifier.height(8.dp))
+
+            // 🔹 Texto de la publicación
             Text(post.texto)
             Spacer(Modifier.height(8.dp))
 
+            // 🔹 Imagen (si hay)
             if (!post.imagenPath.isNullOrEmpty()) {
                 Image(
                     painter = rememberAsyncImagePainter(post.imagenPath),
@@ -317,6 +298,7 @@ fun PostItem(post: Publicacion) {
                 Spacer(Modifier.height(8.dp))
             }
 
+            // 🔹 Botones de interacción
             Row {
                 IconButton(onClick = { liked = !liked }) {
                     Icon(
@@ -328,8 +310,15 @@ fun PostItem(post: Publicacion) {
                         tint = if (liked) Color.Red else Color.Gray
                     )
                 }
-                IconButton(onClick = { /* Abrir comentarios */ }) {
-                    Icon(Icons.Default.Message, contentDescription = "Mensaje")
+
+                // 🔹 BOTÓN DE COMENTARIOS - AHORA FUNCIONAL
+                IconButton(
+                    onClick = {
+                        // Navegar a la pantalla de comentarios con el ID de la publicación
+                        navController.navigate("comentarios/${post.id}")
+                    }
+                ) {
+                    Icon(Icons.Default.Message, contentDescription = "Comentarios")
                 }
             }
         }

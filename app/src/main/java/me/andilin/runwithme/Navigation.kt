@@ -28,7 +28,7 @@ fun Navigation(navController: NavHostController) {
         // --- Pantalla de Registro ---
         composable("register") {
             RegisterScreen(
-                navController = navController, // 🔹 Este es el que te faltaba
+                navController = navController,
                 onClickBack = { navController.popBackStack() },
                 onSuccessfulRegister = {
                     navController.navigate("home") {
@@ -53,17 +53,27 @@ fun Navigation(navController: NavHostController) {
                 onBack = { navController.popBackStack() }
             )
         }
+
         composable("crear_grupo") {
-            Grupos(navController = navController) // Tu frame de crear grupos
+            Grupos(navController = navController)
         }
 
         composable("mapa") {
-            Mapa(navController = navController) // Asegúrate de que tu Mapa.kt acepte navController
+            Mapa(navController = navController)
         }
 
         // --- Perfil ---
         composable("profile") {
             ProfileScreen(navController = navController)
+        }
+
+
+        composable("comentarios/{publicacionId}") { backStackEntry ->
+            val publicacionId = backStackEntry.arguments?.getString("publicacionId") ?: ""
+            ComentarioScreen(
+                navController = navController,
+                publicacionId = publicacionId
+            )
         }
     }
 }

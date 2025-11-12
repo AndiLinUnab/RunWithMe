@@ -9,8 +9,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 
 import androidx.compose.material.icons.filled.Logout
@@ -47,46 +49,38 @@ fun ProfileScreen(navController: NavHostController) {
     var selectedTab by remember { mutableStateOf("posts") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
 
-    val pickImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        imageUri = uri
-    }
+    val pickImageLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            imageUri = uri
+        }
 
-    // ---- Cargar datos desde Firestore ----
+    // ---- Cargar datos del usuario, publicaciones y grupos ----
     LaunchedEffect(Unit) {
         val uid = auth.currentUser?.uid ?: return@LaunchedEffect
         try {
+            // Usuario
             val userDoc = db.collection("usuarios").document(uid).get().await()
-            if (userDoc.exists()) user = userDoc.toObject(UserData::class.java) ?: UserData()
+            if (userDoc.exists()) {
+                user = userDoc.toObject(UserData::class.java) ?: UserData()
+            }
 
+            // Grupos donde el usuario es miembro
             val groupsSnap = db.collection("grupos")
                 .whereArrayContains("members", uid)
                 .get().await()
-            groups = groupsSnap.documents.mapNotNull { doc ->
-                Group(
-                    id = doc.id,
-                    name = doc.getString("name") ?: "",
-                    distance = (doc.getDouble("distance") ?: 0.0).toFloat(),
-                    pace = doc.getDouble("pace") ?: 0.0
-                )
-            }
+            groups = groupsSnap.toObjects(Group::class.java)
 
+            // Publicaciones del usuario
             val postsSnap = db.collection("publicaciones")
                 .whereEqualTo("userId", uid)
                 .get().await()
-            posts = postsSnap.documents.mapNotNull { doc ->
-                Publicacion(
-                    id = doc.id,
-                    texto = doc.getString("texto") ?: "",
-                    imagenPath = doc.getString("imageUri"),
-                    tiempo = doc.getString("timeAgo") ?: ""
-                )
-            }
+            posts = postsSnap.toObjects(Publicacion::class.java).reversed()
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    // ---- Calcular estadísticas ----
+    // ---- Cálculo de estadísticas ----
     val totalKm = groups.sumOf { it.distance.toDouble() }
     val avgPace = if (groups.isNotEmpty()) groups.map { it.pace }.average() else 0.0
 
@@ -97,11 +91,14 @@ fun ProfileScreen(navController: NavHostController) {
                 actions = {
                     IconButton(onClick = {
                         auth.signOut()
+                        navController.navigate("login") {
+                            popUpTo("home") { inclusive = true }
+                        }
                     }) {
                         Icon(Icons.Default.Logout, contentDescription = "Cerrar sesión")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF40A2E3))
             )
         }
     ) { padding ->
@@ -109,17 +106,18 @@ fun ProfileScreen(navController: NavHostController) {
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .background(Color.White),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // ---- Foto y nombre ----
+            // ---- Imagen de perfil ----
             Box(
                 modifier = Modifier
-                    .size(90.dp)
+                    .size(100.dp)
                     .clip(CircleShape)
-                    .border(2.dp, Color.LightGray, CircleShape)
+                    .border(2.dp, Color(0xFF40A2E3), CircleShape)
                     .clickable { pickImageLauncher.launch("image/*") },
                 contentAlignment = Alignment.Center
             ) {
@@ -133,12 +131,13 @@ fun ProfileScreen(navController: NavHostController) {
                 )
             }
 
+            Spacer(Modifier.height(10.dp))
             Text(user.nombre.ifEmpty { "Usuario" }, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text(user.nivel.ifEmpty { "Sin nivel" }, color = Color.Gray, fontSize = 14.sp)
+            Text(user.nivel.ifEmpty { "Sin nivel definido" }, color = Color.Gray, fontSize = 14.sp)
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // ---- Métricas ----
+            // ---- Estadísticas ----
             Row(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 modifier = Modifier
@@ -155,7 +154,7 @@ fun ProfileScreen(navController: NavHostController) {
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(16.dp))
 
             // ---- Tabs ----
             Row(
@@ -163,7 +162,7 @@ fun ProfileScreen(navController: NavHostController) {
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 Text(
-                    "mis grupos",
+                    "Mis grupos",
                     fontWeight = if (selectedTab == "grupos") FontWeight.Bold else FontWeight.Normal,
                     color = if (selectedTab == "grupos") Color(0xFFB388EB) else Color.Gray,
                     modifier = Modifier
@@ -171,7 +170,7 @@ fun ProfileScreen(navController: NavHostController) {
                         .padding(8.dp)
                 )
                 Text(
-                    "mis posts",
+                    "Mis publicaciones",
                     fontWeight = if (selectedTab == "posts") FontWeight.Bold else FontWeight.Normal,
                     color = if (selectedTab == "posts") Color(0xFFB388EB) else Color.Gray,
                     modifier = Modifier
@@ -182,77 +181,61 @@ fun ProfileScreen(navController: NavHostController) {
 
             Divider(color = Color(0xFFB388EB), thickness = 1.dp)
 
-            // ---- Contenido según pestaña ----
-            if (selectedTab == "posts") {
-                LazyColumn(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(12.dp)
-                ) {
-                    items(posts) { post ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            elevation = CardDefaults.cardElevation(3.dp)
-                        ) {
-                            Column(Modifier.padding(12.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Image(
-                                        painter = painterResource(R.drawable.placeholderprofile),
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Column {
-                                        Text(user.nombre, fontWeight = FontWeight.Bold)
-                                        Text(post.tiempo, fontSize = 12.sp, color = Color.Gray)
+            // ---- Contenido dinámico ----
+            when (selectedTab) {
+                "posts" -> {
+                    if (posts.isEmpty()) {
+                        Text("Aún no has publicado nada.", color = Color.Gray, modifier = Modifier.padding(20.dp))
+                    } else {
+                        posts.forEach { post ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(10.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                elevation = CardDefaults.cardElevation(2.dp)
+                            ) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(post.texto, fontWeight = FontWeight.Normal)
+                                    post.imagenPath?.takeIf { it.isNotEmpty() }?.let {
+                                        Spacer(Modifier.height(8.dp))
+                                        Image(
+                                            painter = rememberAsyncImagePainter(it),
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(150.dp)
+                                                .clip(RoundedCornerShape(8.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
                                     }
-                                }
-                                Spacer(Modifier.height(8.dp))
-                                Text(post.texto)
-                                Spacer(Modifier.height(8.dp))
-                                post.imagenPath?.let {
-                                    Image(
-                                        painter = rememberAsyncImagePainter(it),
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(150.dp)
-                                            .clip(RoundedCornerShape(8.dp)),
-                                        contentScale = ContentScale.Crop
-                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(post.tiempo, fontSize = 12.sp, color = Color.Gray)
                                 }
                             }
                         }
                     }
                 }
-            } else {
-                LazyColumn(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(12.dp)
-                ) {
-                    items(groups) { group ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            elevation = CardDefaults.cardElevation(2.dp)
-                        ) {
-                            Column(
-                                Modifier
-                                    .padding(12.dp)
+
+                "grupos" -> {
+                    if (groups.isEmpty()) {
+                        Text("No perteneces a ningún grupo todavía.", color = Color.Gray, modifier = Modifier.padding(20.dp))
+                    } else {
+                        groups.forEach { group ->
+                            Card(
+                                modifier = Modifier
                                     .fillMaxWidth()
+                                    .padding(10.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                elevation = CardDefaults.cardElevation(2.dp)
                             ) {
-                                Text(group.name, fontWeight = FontWeight.Bold)
-                                Spacer(Modifier.height(4.dp))
-                                Text("Kilómetros: ${group.distance}")
-                                Text("Ritmo: ${group.pace} min/km")
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(group.name, fontWeight = FontWeight.Bold)
+                                    Text(group.sportType, color = Color.Gray)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("Distancia: ${group.distance} km")
+                                    Text("Ritmo: ${group.pace} min/km")
+                                }
                             }
                         }
                     }
