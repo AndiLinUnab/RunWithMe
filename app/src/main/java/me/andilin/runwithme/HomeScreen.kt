@@ -27,7 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import me.andilin.runwithme.model.Historia
 import me.andilin.runwithme.model.Publicacion
@@ -59,7 +61,9 @@ fun HomeScreen(
                 .get()
                 .await()
 
-            publicaciones = publicacionesSnap.toObjects(Publicacion::class.java).reversed()
+            publicaciones = publicacionesSnap.documents.mapNotNull { doc ->
+                doc.toObject(Publicacion::class.java)?.copy(id = doc.id)
+            }.reversed()
             historias = historiasSnap.toObjects(Historia::class.java).reversed()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -464,7 +468,10 @@ fun HomeScreen(
                     }
                 } else {
                     items(publicaciones) { post ->
-                        PostItem(post)
+                        PostItem(
+                            post = post,
+                            navController = navController
+                        )
                     }
                 }
 
@@ -477,9 +484,106 @@ fun HomeScreen(
 }
 
 @Composable
-fun PostItem(post: Publicacion) {
+fun PostItem(
+    post: Publicacion,
+    navController: NavHostController
+) {
     var liked by remember { mutableStateOf(false) }
     var likesCount by remember { mutableStateOf(156) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
+
+    val db = FirebaseFirestore.getInstance()
+    val auth = FirebaseAuth.getInstance()
+    val currentUserId = auth.currentUser?.uid
+    val coroutineScope = rememberCoroutineScope()
+
+    // Función para eliminar publicación
+    suspend fun eliminarPublicacion() {
+        isDeleting = true
+        try {
+            // Eliminar la publicación
+            db.collection("publicaciones").document(post.id).delete().await()
+
+            // También eliminar sus comentarios
+            val comentariosSnap = db.collection("comentarios")
+                .whereEqualTo("publicacionId", post.id)
+                .get()
+                .await()
+
+            comentariosSnap.documents.forEach { doc ->
+                doc.reference.delete().await()
+            }
+
+            println("✅ Publicación eliminada exitosamente")
+        } catch (e: Exception) {
+            println("❌ Error al eliminar publicación: ${e.message}")
+        } finally {
+            isDeleting = false
+            showDeleteDialog = false
+        }
+    }
+
+    // Diálogo de confirmación
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            icon = {
+                Icon(
+                    Icons.Outlined.DeleteOutline,
+                    contentDescription = null,
+                    tint = Color(0xFFEF4444),
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    "¿Eliminar publicación?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    "Esta acción no se puede deshacer. Se eliminarán la publicación y todos sus comentarios.",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            eliminarPublicacion()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFEF4444)
+                    ),
+                    enabled = !isDeleting
+                ) {
+                    if (isDeleting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Eliminar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                    enabled = !isDeleting
+                ) {
+                    Text("Cancelar", color = Color.Gray)
+                }
+            },
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
 
     Card(
         modifier = Modifier
@@ -619,7 +723,9 @@ fun PostItem(post: Publicacion) {
 
                 // Comment button
                 TextButton(
-                    onClick = { /* Abrir comentarios */ },
+                    onClick = {
+                        navController.navigate("comentarios/${post.id}")
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -636,23 +742,49 @@ fun PostItem(post: Publicacion) {
                     )
                 }
 
-                // Share button
-                TextButton(
-                    onClick = { /* Compartir */ },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        Icons.Outlined.Share,
-                        contentDescription = "Compartir",
-                        tint = Color.Gray,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "Compartir",
-                        color = Color.Gray,
-                        fontSize = 14.sp
-                    )
+                // Delete button (solo si es el autor de la publicación)
+                if (currentUserId == post.userId) {
+                    TextButton(
+                        onClick = { showDeleteDialog = true },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            Icons.Outlined.DeleteOutline,
+                            contentDescription = "Eliminar",
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "Eliminar",
+                            color = Color(0xFFEF4444),
+                            fontSize = 14.sp
+                        )
+                    }
+                } else {
+                    // Si no es el autor, mostrar botón de compartir (deshabilitado por ahora)
+                    TextButton(
+                        onClick = {
+                            if (currentUserId == post.userId) {
+                                showDeleteDialog = true
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = currentUserId == post.userId
+                    ) {
+                        Icon(
+                            Icons.Outlined.DeleteOutline,
+                            contentDescription = "Eliminar",
+                            tint = if (currentUserId == post.userId) Color(0xFFEF4444) else Color.LightGray,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "Eliminar",
+                            color = if (currentUserId == post.userId) Color(0xFFEF4444) else Color.LightGray,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }

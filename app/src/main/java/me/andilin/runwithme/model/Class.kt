@@ -11,15 +11,6 @@ data class UserData(
     val nivel: String = "",
     val fotoLocal: String? = null
 )
-data class Publicacion(
-    val id: String = "",
-    val autor: String = "",
-    val texto: String = "",
-    val grupo: String = "",
-    val imagenPath: String? = null,
-    val tiempo: String = "",
-    val userId: String = ""
-)
 data class Historia(
     val id: String = "",
     val autor: String = "",

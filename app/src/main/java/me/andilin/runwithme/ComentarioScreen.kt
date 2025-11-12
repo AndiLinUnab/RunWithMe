@@ -1,31 +1,30 @@
 package me.andilin.runwithme
 
-
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -122,120 +121,250 @@ fun ComentarioScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Comentarios",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF40A2E3)
-                ),
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAFC))
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header con gradiente
+            Surface(shadowElevation = 4.dp) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0xFF6366F1),
+                                    Color(0xFF8B5CF6)
+                                )
+                            )
+                        )
+                ) {
+                    IconButton(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(16.dp)
+                    ) {
                         Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = "Regresar",
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver",
                             tint = Color.White
                         )
                     }
-                }
-            )
-        },
-        bottomBar = {
-            // Input para nuevo comentario
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .background(Color.White),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = nuevoComentario,
-                    onValueChange = { nuevoComentario = it },
-                    placeholder = { Text("Escribe un comentario...") },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 8.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF5F5F5),
-                        unfocusedContainerColor = Color(0xFFF5F5F5),
-                        disabledContainerColor = Color(0xFFF5F5F5),
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    )
-                )
 
-                IconButton(
-                    onClick = { enviarComentario() },
-                    enabled = nuevoComentario.isNotBlank()
-                ) {
-                    Icon(
-                        Icons.Default.Send,
-                        contentDescription = "Enviar comentario",
-                        tint = if (nuevoComentario.isNotBlank()) Color(0xFF40A2E3) else Color.Gray
-                    )
-                }
-            }
-        }
-    ) { padding ->
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else if (publicacion == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Publicación no encontrada")
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .background(Color.White)
-            ) {
-                // Información de la publicación
-                PublicacionHeader(publicacion!!)
-
-                // Lista de comentarios
-                if (comentarios.isEmpty()) {
-                    Box(
+                    Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
+                            .padding(top = 50.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
+                        Icon(
+                            Icons.Outlined.ModeComment,
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                            tint = Color.White
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                "Comentarios",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            if (comentarios.isNotEmpty()) {
+                                Spacer(Modifier.width(8.dp))
+                                Surface(
+                                    color = Color.White.copy(alpha = 0.25f),
+                                    shape = CircleShape
+                                ) {
+                                    Text(
+                                        "${comentarios.size}",
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(
+                            color = Color(0xFF6366F1),
+                            strokeWidth = 3.dp
+                        )
+                        Spacer(Modifier.height(16.dp))
                         Text(
-                            "No hay comentarios aún\nSé el primero en comentar!",
+                            "Cargando comentarios...",
                             color = Color.Gray,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            fontSize = 14.sp
                         )
                     }
-                } else {
-                    LazyColumn(
+                }
+            } else if (publicacion == null) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Outlined.ErrorOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = Color.LightGray
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "Publicación no encontrada",
+                            color = Color.Gray,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f)
+                ) {
+                    // Información de la publicación
+                    PublicacionHeader(publicacion!!)
+
+                    // Lista de comentarios
+                    if (comentarios.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Outlined.ChatBubbleOutline,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = Color.LightGray
+                                )
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    "No hay comentarios aún",
+                                    color = Color.Gray,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "Sé el primero en comentar",
+                                    color = Color.LightGray,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f)
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            item { Spacer(Modifier.height(8.dp)) }
+                            items(comentarios) { comentario ->
+                                ComentarioItem(comentario = comentario)
+                            }
+                            item { Spacer(Modifier.height(8.dp)) }
+                        }
+                    }
+                }
+
+                // Input para nuevo comentario (fijo en la parte inferior)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shadowElevation = 8.dp,
+                    color = Color.White
+                ) {
+                    Row(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f)
-                            .padding(horizontal = 16.dp)
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(comentarios) { comentario ->
-                            ComentarioItem(comentario = comentario)
+                        // Foto del usuario actual
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .border(2.dp, Color(0xFF6366F1), CircleShape)
+                        ) {
+                            Image(
+                                painter = rememberAsyncImagePainter(currentUserData?.fotoLocal ?: ""),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+
+                        // Campo de texto
+                        TextField(
+                            value = nuevoComentario,
+                            onValueChange = { nuevoComentario = it },
+                            placeholder = {
+                                Text(
+                                    "Escribe un comentario...",
+                                    color = Color.Gray,
+                                    fontSize = 14.sp
+                                )
+                            },
+                            modifier = Modifier
+                                .weight(1f),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFFF1F5F9),
+                                unfocusedContainerColor = Color(0xFFF1F5F9),
+                                disabledContainerColor = Color(0xFFF1F5F9),
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            maxLines = 3
+                        )
+
+                        // Botón de enviar
+                        IconButton(
+                            onClick = { enviarComentario() },
+                            enabled = nuevoComentario.isNotBlank(),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (nuevoComentario.isNotBlank())
+                                        Color(0xFF6366F1)
+                                    else
+                                        Color.LightGray
+                                )
+                        ) {
+                            Icon(
+                                Icons.Filled.Send,
+                                contentDescription = "Enviar comentario",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
@@ -250,42 +379,103 @@ fun PublicacionHeader(publicacion: Publicacion) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             // Encabezado (autor + tiempo)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painter = rememberAsyncImagePainter(publicacion.imagenPath ?: ""),
-                    contentDescription = null,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                )
-                Spacer(Modifier.width(8.dp))
-                Column {
-                    Text(publicacion.autor, fontWeight = FontWeight.Bold)
-                    Text(publicacion.tiempo, fontSize = 12.sp, color = Color.Gray)
+                        .border(2.dp, Color(0xFF6366F1), CircleShape)
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(publicacion.imagenPath ?: ""),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        publicacion.autor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color(0xFF1F2937)
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.Schedule,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = Color.Gray
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            publicacion.tiempo,
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
 
             // Texto de la publicación
             Text(
                 publicacion.texto,
-                modifier = Modifier.padding(vertical = 4.dp)
+                fontSize = 15.sp,
+                color = Color(0xFF374151),
+                lineHeight = 22.sp
             )
 
             // Grupo (si existe)
             if (publicacion.grupo.isNotBlank()) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "En ${publicacion.grupo}",
-                    fontSize = 12.sp,
-                    color = Color(0xFF40A2E3),
-                    fontWeight = FontWeight.Medium
+                Spacer(Modifier.height(8.dp))
+                Surface(
+                    color = Color(0xFF6366F1).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Outlined.Groups,
+                            contentDescription = null,
+                            tint = Color(0xFF6366F1),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            publicacion.grupo,
+                            fontSize = 12.sp,
+                            color = Color(0xFF6366F1),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // Imagen (si existe)
+            if (!publicacion.imagenPath.isNullOrEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Image(
+                    painter = rememberAsyncImagePainter(publicacion.imagenPath),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
                 )
             }
         }
@@ -295,45 +485,49 @@ fun PublicacionHeader(publicacion: Publicacion) {
 @Composable
 fun ComentarioItem(comentario: Comentario) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F9FA))
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Foto del usuario
-            Image(
-                painter = rememberAsyncImagePainter(comentario.userPhoto ?: ""),
-                contentDescription = null,
+            Box(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-            )
-
-            Spacer(Modifier.width(8.dp))
+                    .border(1.5.dp, Color(0xFF6366F1).copy(alpha = 0.3f), CircleShape)
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(comentario.userPhoto ?: ""),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
 
             // Contenido del comentario
             Column(modifier = Modifier.weight(1f)) {
                 // Nombre y fecha
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         comentario.userName,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        color = Color(0xFF1F2937)
                     )
-
-                    Spacer(Modifier.width(8.dp))
 
                     Text(
                         formatDate(comentario.fecha),
                         fontSize = 11.sp,
-                        color = Color.Gray
+                        color = Color.LightGray
                     )
                 }
 
@@ -343,7 +537,8 @@ fun ComentarioItem(comentario: Comentario) {
                 Text(
                     comentario.texto,
                     fontSize = 14.sp,
-                    lineHeight = 16.sp
+                    lineHeight = 20.sp,
+                    color = Color(0xFF374151)
                 )
             }
         }
@@ -352,6 +547,21 @@ fun ComentarioItem(comentario: Comentario) {
 
 // Función para formatear la fecha
 fun formatDate(date: Date): String {
-    val sdf = SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
-    return sdf.format(date)
+    val now = Date()
+    val diff = now.time - date.time
+    val seconds = diff / 1000
+    val minutes = seconds / 60
+    val hours = minutes / 60
+    val days = hours / 24
+
+    return when {
+        seconds < 60 -> "Ahora"
+        minutes < 60 -> "Hace ${minutes}m"
+        hours < 24 -> "Hace ${hours}h"
+        days < 7 -> "Hace ${days}d"
+        else -> {
+            val sdf = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
+            sdf.format(date)
+        }
+    }
 }
