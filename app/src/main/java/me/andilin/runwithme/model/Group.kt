@@ -11,14 +11,14 @@ data class Group(
     val description: String = "",
     val imageUrl: String = "",
     val location: GroupLocation = GroupLocation(),
-    val experienceLevel: String = "Principiante",
-    val sportType: String = "Running",
+    val experienceLevel: String = "",
+    val sportType: String = "",
     val distance: Float = 15f,
     val trainingDays: List<String> = emptyList(),
-    val meetingTime: String = "18:00",
-    val createdBy: String = "", // ID del usuario que creó el grupo
+    val meetingTime: String = "",
+    val createdBy: String = "",
     val createdAt: Date = Date(),
-    val members: List<String> = emptyList(), // Solo IDs de miembros
+    val members: List<String> = emptyList(),
     val memberCount: Int = 1,
 
     val pace: Double = 10.toDouble()

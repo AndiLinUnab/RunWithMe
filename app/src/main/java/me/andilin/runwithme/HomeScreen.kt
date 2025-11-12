@@ -3,27 +3,24 @@ package me.andilin.runwithme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Message
-
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Notifications
-
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -32,33 +29,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-
 import coil.compose.rememberAsyncImagePainter
-
 import com.google.firebase.auth.FirebaseAuth
-
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import me.andilin.runwithme.model.Group
 import me.andilin.runwithme.model.Historia
 import me.andilin.runwithme.model.Publicacion
-import kotlin.collections.isNotEmpty
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    navController: androidx.navigation.NavHostController,
+    navController: NavHostController,
     onCrearPublicacion: () -> Unit = {},
     navToProfile: () -> Unit = {},
     navToGroups: () -> Unit = {}
@@ -119,14 +109,57 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = navToGroups) {
-                            Icon(Icons.Default.Groups, contentDescription = "Grupos")
+                        // 🔹 BOTÓN GRUPOS
+                        IconButton(
+                            onClick = {
+                                navController.navigate("crear_grupo")
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.Groups,
+                                contentDescription = "Grupos",
+                                tint = Color.White
+                            )
                         }
-                        IconButton(onClick = { /* Home actual */ }) {
-                            Icon(Icons.Default.Home, contentDescription = "Home")
+
+                        // 🔹 NUEVO BOTÓN MAPA
+                        IconButton(
+                            onClick = {
+                                navController.navigate("mapa")
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.Map,
+                                contentDescription = "Mapa",
+                                tint = Color.White
+                            )
                         }
-                        IconButton(onClick = navToProfile) {
-                            Icon(Icons.Default.Person, contentDescription = "Perfil")
+
+                        // 🔹 BOTÓN HOME
+                        IconButton(
+                            onClick = {
+                                // Ya estamos en home, pero puedes agregar funcionalidad
+                                // como scroll to top si quieres
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.Home,
+                                contentDescription = "Home",
+                                tint = Color.White
+                            )
+                        }
+
+                        // 🔹 BOTÓN PERFIL
+                        IconButton(
+                            onClick = {
+                                navController.navigate("profile")
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = "Perfil",
+                                tint = Color.White
+                            )
                         }
                     }
                 }

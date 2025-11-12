@@ -53,6 +53,13 @@ fun Navigation(navController: NavHostController) {
                 onBack = { navController.popBackStack() }
             )
         }
+        composable("crear_grupo") {
+            Grupos(navController = navController) // Tu frame de crear grupos
+        }
+
+        composable("mapa") {
+            Mapa(navController = navController) // Asegúrate de que tu Mapa.kt acepte navController
+        }
 
         // --- Perfil ---
         composable("profile") {
